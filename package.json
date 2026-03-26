@@ -1,0 +1,17 @@
+{
+  "name": "devforge",
+  "version": "2.0.0",
+  "description": "DevForge - Professional Developer Networking Platform",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install --prefix backend && npm install --prefix client",
+    "start": "npm start --prefix backend",
+    "server": "npm run dev --prefix backend",
+    "client": "npm run dev --prefix client",
+    "dev": "concurrently \"npm run server\" \"npm run client\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
