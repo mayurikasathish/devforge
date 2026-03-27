@@ -1,4 +1,4 @@
-# DevForge Developer Networking Platform
+# DevForge Developer - Networking Platform
 
 A production-grade developer collaboration platform with real-time collaboration rooms, project matchmaking, anonymous Q&A, GitHub integration, and a modern glassmorphism UI.
 
