@@ -4,6 +4,12 @@ const auth = require('../../middleware/auth');
 const { check, validationResult } = require('express-validator');
 const Profile = require('../../models/Profile');
 const User = require('../../models/User');
+const cloudinary = require('cloudinary').v2;
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+    });
 
 // @route  GET api/profile/me
 // @desc   Get current user's profile
@@ -241,12 +247,7 @@ router.put('/avatar', auth, async (req, res) => {
     const { avatar } = req.body;
     if (!avatar) return res.status(400).json({ msg: 'Avatar required' });
 
-    const cloudinary = require('cloudinary').v2;
-    cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
-    });
+    
 
     const result = await cloudinary.uploader.upload(avatar, {
       folder: 'devforge',
