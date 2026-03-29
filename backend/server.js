@@ -15,7 +15,8 @@ connectDB();
 
 // Init Middleware
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Define Routes
 app.use('/api/users',   require('./routes/api/users'));
