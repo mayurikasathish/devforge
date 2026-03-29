@@ -234,18 +234,31 @@ router.delete('/', auth, async (req, res) => {
 });
 
 // @route  PUT api/profile/avatar
-// @desc   Update user avatar (base64 or URL)
+// @desc   Update user avatar
 // @access Private
 router.put('/avatar', auth, async (req, res) => {
   try {
     const { avatar } = req.body;
     if (!avatar) return res.status(400).json({ msg: 'Avatar required' });
-    await User.findByIdAndUpdate(req.user.id, { avatar });
-    res.json({ msg: 'Avatar updated', avatar });
+
+    const cloudinary = require('cloudinary').v2;
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+    });
+
+    const result = await cloudinary.uploader.upload(avatar, {
+      folder: 'devforge',
+      width: 200,
+      height: 200,
+      crop: 'fill',
+    });
+
+    await User.findByIdAndUpdate(req.user.id, { avatar: result.secure_url });
+    res.json({ msg: 'Avatar updated', avatar: result.secure_url });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
   }
 });
-
-module.exports = router;
