@@ -330,9 +330,10 @@ export default function EditProfile() {
                       className="input-glass text-sm" placeholder="Company" />
                     <input type="date" value={exp.from} onChange={e => setExperience(experience.map((x, j) => j === i ? { ...x, from: e.target.value } : x))}
                       className="input-glass text-sm" />
-                    <input type="date" value={exp.to} disabled={exp.current}
-                      onChange={e => setExperience(experience.map((x, j) => j === i ? { ...x, to: e.target.value } : x))}
-                      className="input-glass text-sm disabled:opacity-40" />
+                    <input type="date" value={exp.to}
+  onChange={e => updateExp(idx, 'to', e.target.value)}
+  min={exp.from}
+  className="input-glass" disabled={exp.current} />
                   </div>
                   <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
                     <input type="checkbox" checked={exp.current}
@@ -371,9 +372,10 @@ export default function EditProfile() {
                       className="input-glass text-sm" placeholder="Field of Study" />
                     <input type="date" value={edu.from} onChange={e => setEducation(education.map((x, j) => j === i ? { ...x, from: e.target.value } : x))}
                       className="input-glass text-sm" />
-                    <input type="date" value={edu.to} disabled={edu.current}
-                      onChange={e => setEducation(education.map((x, j) => j === i ? { ...x, to: e.target.value } : x))}
-                      className="input-glass text-sm disabled:opacity-40" />
+                    <input type="date" value={edu.to}
+  onChange={e => updateEdu(idx, 'to', e.target.value)}
+  min={edu.from}
+  className="input-glass" disabled={edu.current} />
                   </div>
                   <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
                     <input type="checkbox" checked={edu.current}
