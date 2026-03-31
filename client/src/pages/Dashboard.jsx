@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
-import { Star, Users, Layers, Zap, ArrowRight, TrendingUp } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { Star, Users, Layers, Zap, ArrowRight, TrendingUp, X, Clock } from 'lucide-react';
 
 const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const fadeUp = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.4 } } };
@@ -21,12 +22,99 @@ function SkillStars({ level }) {
   );
 }
 
+function ProjectModal({ project, onClose, onApply, currentUserId }) {
+  if (!project) return null;
+  const isOwner = (project.user?._id || project.user) === currentUserId;
+  const hasApplied = project.applicants?.some(a => (a._id || a) === currentUserId);
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center px-4"
+        style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          className="glass-dark p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1 min-w-0 pr-3">
+              <h2 className="font-display font-bold text-xl text-white">{project.title}</h2>
+              <div className="flex items-center gap-2 mt-1">
+                <img src={project.user?.avatar} alt="" className="w-4 h-4 rounded-full" />
+                <span className="text-xs text-gray-500 font-body">{project.user?.name}</span>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 transition-all flex-shrink-0">
+              <X size={16} className="text-gray-400" />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <p className="text-sm text-gray-300 font-body leading-relaxed whitespace-pre-wrap">{project.description}</p>
+
+            {project.techStack?.length > 0 && (
+              <div>
+                <p className="text-xs font-mono text-gray-500 mb-2">Tech Stack</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {project.techStack.map(t => <span key={t} className="tag text-[10px]">{t}</span>)}
+                </div>
+              </div>
+            )}
+
+            {project.rolesNeeded?.length > 0 && (
+              <div>
+                <p className="text-xs font-mono text-gray-500 mb-2">Roles Needed</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {project.rolesNeeded.map(r => (
+                    <span key={r} className="text-[10px] px-2 py-0.5 rounded-lg font-mono"
+                      style={{ background: 'rgba(244,114,182,0.1)', border: '1px solid rgba(244,114,182,0.25)', color: '#f9a8d4' }}>
+                      🔍 {r}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-4 text-xs text-gray-600 font-mono">
+              <span className="flex items-center gap-1"><Users size={11} /> {project.applicants?.length || 0} applicants</span>
+              {project.duration && <span className="flex items-center gap-1"><Clock size={11} /> {project.duration}</span>}
+            </div>
+
+            {!isOwner && (
+              <button
+                onClick={() => { onApply(project._id); onClose(); }}
+                disabled={hasApplied}
+                className={`w-full py-3 rounded-xl font-body font-medium text-sm transition-all ${hasApplied
+                  ? 'bg-white/5 text-gray-500 cursor-not-allowed border border-white/10'
+                  : 'btn-primary'}`}>
+                {hasApplied ? 'Already Applied ✓' : 'Apply to Project'}
+              </button>
+            )}
+            {isOwner && (
+              <div className="text-center text-xs font-mono text-purple-light py-2">This is your project</div>
+            )}
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [suggested, setSuggested] = useState([]);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedProject, setSelectedProject] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -57,6 +145,15 @@ export default function Dashboard() {
     value: (s.level || 3) * 20
   })) || [];
 
+  const handleApply = async (id) => {
+    try {
+      await api.put(`/api/projects/apply/${id}`);
+      setProjects(projects.map(p => p._id === id
+        ? { ...p, applicants: [...(p.applicants || []), { _id: user?.id }] } : p));
+      toast.success('Application sent!');
+    } catch { toast.error('Could not apply'); }
+  };
+
   if (loading) return (
     <div className="min-h-screen pt-28 flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-purple rounded-full border-t-transparent animate-spin" />
@@ -65,10 +162,20 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 pt-28 pb-16">
+      {/* Project Modal */}
+      {selectedProject && (
+        <ProjectModal
+          project={selectedProject}
+          onClose={() => setSelectedProject(null)}
+          onApply={handleApply}
+          currentUserId={user?.id}
+        />
+      )}
+
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
         <h1 className="font-display font-bold text-4xl text-white">
-          Hey, <span className="gradient-text">{user?.name?.split(' ')[0]}</span> 
+          Hey, <span className="gradient-text">{user?.name?.split(' ')[0]}</span>
         </h1>
         <p className="text-gray-400 font-body mt-2">Here's what's happening in your forge.</p>
       </motion.div>
@@ -113,7 +220,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Skills list */}
           {profile?.skills?.length > 0 && (
             <div className="mt-4 space-y-2">
               {profile.skills.slice(0, 5).map(s => (
@@ -182,23 +288,52 @@ export default function Dashboard() {
             </div>
             {projects.length > 0 ? (
               <div className="space-y-3">
-                {projects.map(proj => (
-                  <div key={proj._id} className="glass p-4 rounded-xl card-hover">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="text-sm font-display font-semibold text-white">{proj.title}</h3>
-                        <p className="text-xs text-gray-500 font-body mt-0.5 line-clamp-1">{proj.description}</p>
+                {projects.map(proj => {
+                  const isOwner = (proj.user?._id || proj.user) === user?.id;
+                  const hasApplied = proj.applicants?.some(a => (a._id || a) === user?.id);
+                  const isLong = proj.description?.length > 120;
+                  return (
+                    <div key={proj._id} className="glass p-4 rounded-xl card-hover">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-display font-semibold text-white">{proj.title}</h3>
+                          <p className="text-xs text-gray-500 font-body mt-0.5 line-clamp-2">{proj.description}</p>
+                          {isLong && (
+                            <button onClick={() => setSelectedProject(proj)}
+                              className="text-xs text-purple-light hover:text-white font-mono mt-1 transition-colors">
+                              Read more →
+                            </button>
+                          )}
+                        </div>
+                        <span className="tag-aqua text-[10px] px-2 py-0.5 rounded-lg whitespace-nowrap font-mono flex-shrink-0"
+                          style={{ background: 'rgba(45,212,191,0.1)', border: '1px solid rgba(45,212,191,0.3)', color: '#5eead4' }}>
+                          {proj.status}
+                        </span>
                       </div>
-                      <span className="tag-aqua text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap font-mono"
-                        style={{ background: 'rgba(45,212,191,0.1)', border: '1px solid rgba(45,212,191,0.3)', color: '#5eead4' }}>
-                        {proj.status}
-                      </span>
+                      <div className="flex gap-1 mt-2 flex-wrap">
+                        {proj.techStack?.slice(0, 4).map(t => <span key={t} className="tag text-[10px]">{t}</span>)}
+                      </div>
+                      <div className="flex items-center justify-between mt-3">
+                        <span className="text-xs text-gray-600 font-mono flex items-center gap-1">
+                          <Users size={10} /> {proj.applicants?.length || 0} applicants
+                        </span>
+                        {!isOwner && (
+                          <button
+                            onClick={() => handleApply(proj._id)}
+                            disabled={hasApplied}
+                            className={`text-xs px-4 py-1.5 rounded-xl font-body font-medium transition-all ${hasApplied
+                              ? 'bg-white/5 text-gray-500 cursor-not-allowed border border-white/10'
+                              : 'btn-primary py-1.5 px-4 text-xs'}`}>
+                            {hasApplied ? 'Applied ✓' : 'Apply'}
+                          </button>
+                        )}
+                        {isOwner && (
+                          <span className="text-xs font-mono text-purple-light">Your project</span>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex gap-1 mt-2 flex-wrap">
-                      {proj.techStack?.slice(0, 4).map(t => <span key={t} className="tag text-[10px]">{t}</span>)}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-6">
