@@ -199,7 +199,7 @@ export default function RoomDetail() {
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.length === 0 && (
               <div className="text-center text-gray-600 text-sm font-body py-8">
-                No messages yet. Say hello! 👋
+                No messages yet. Say hello! 
               </div>
             )}
             {messages.map((msg, i) => {

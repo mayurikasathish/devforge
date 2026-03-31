@@ -68,7 +68,7 @@ export default function Dashboard() {
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
         <h1 className="font-display font-bold text-4xl text-white">
-          Hey, <span className="gradient-text">{user?.name?.split(' ')[0]}</span> 👋
+          Hey, <span className="gradient-text">{user?.name?.split(' ')[0]}</span> 
         </h1>
         <p className="text-gray-400 font-body mt-2">Here's what's happening in your forge.</p>
       </motion.div>
