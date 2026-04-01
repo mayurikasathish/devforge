@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer } from 'recharts';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import { Star, Github, ExternalLink, Twitter, Linkedin, MapPin, Globe, Edit2, Briefcase, GraduationCap, Code2, Zap } from 'lucide-react';
+import { Star, Github, ExternalLink, Twitter, Linkedin, MapPin, Globe, Edit2, Briefcase, GraduationCap, Code2, Zap, ArrowRight } from 'lucide-react';
 
 function SkillStars({ level }) {
   return (
@@ -17,8 +17,6 @@ function SkillStars({ level }) {
     </div>
   );
 }
-
-
 
 export default function ProfilePage() {
   const { id } = useParams();
@@ -36,18 +34,20 @@ export default function ProfilePage() {
         const profileRes = isMe
           ? await api.get('/api/profile/me')
           : await api.get(`/api/profile/user/${id}`);
-        setProfile(profileRes.data);
+        const data = profileRes.data;
+        setProfile(data);
         if (data.leetcodeusername) {
-  api.get(`/api/profile/leetcode/${data.leetcodeusername}`)
-    .then(r => setLeetcode(r.data))
-    .catch(() => {});
-}
-        const ghUser = profileRes.data.githubusername;
-        if (ghUser) {
-          api.get(`/api/github/${ghUser}`).then(r => setRepos(r.data || [])).catch(() => {});
+          api.get(`/api/profile/leetcode/${data.leetcodeusername}`)
+            .then(r => setLeetcode(r.data))
+            .catch(() => {});
+        }
+        if (data.githubusername) {
+          api.get(`/api/github/${data.githubusername}`)
+            .then(r => setRepos(r.data || []))
+            .catch(() => {});
         }
       } catch {
-        if (isMe) navigate('/edit-profile');
+        setProfile(null);
       } finally {
         setLoading(false);
       }
@@ -60,8 +60,14 @@ export default function ProfilePage() {
       <div className="w-8 h-8 border-2 border-purple rounded-full border-t-transparent animate-spin" />
     </div>
   );
+
   if (!profile) return (
-    <div className="min-h-screen pt-28 flex items-center justify-center text-gray-400">Profile not found.</div>
+    <div className="min-h-screen pt-28 flex flex-col items-center justify-center gap-4">
+      <p className="text-gray-400 font-body">You haven't set up your profile yet.</p>
+      <Link to="/edit-profile" className="btn-primary flex items-center gap-2">
+        Set Up Profile <ArrowRight size={14} />
+      </Link>
+    </div>
   );
 
   const { user: profileUser, skills, experience, education, bio, status, location, website,
@@ -79,7 +85,7 @@ export default function ProfilePage() {
     <div className="max-w-6xl mx-auto px-6 pt-28 pb-16">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* LEFT COLUMN - Bio Card */}
+        {/* LEFT COLUMN */}
         <div className="lg:col-span-1 flex flex-col gap-6">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="glass-dark p-6 text-center">
@@ -92,7 +98,7 @@ export default function ProfilePage() {
             </div>
             <h1 className="font-display font-bold text-2xl text-white mb-1">{profileUser?.name}</h1>
             <p className="text-sm font-mono text-purple-light mb-2">{status}</p>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono mb-4"
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-mono mb-4"
               style={{ background: `${availColor}15`, border: `1px solid ${availColor}30`, color: availColor }}>
               <div className="w-1.5 h-1.5 rounded-full" style={{ background: availColor }} />
               {availLabel}
@@ -138,7 +144,7 @@ export default function ProfilePage() {
           </motion.div>
 
           {/* LeetCode Stats */}
-          {leetcodeusername && leetcode &&(
+          {leetcodeusername && leetcode && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.1 } }}
               className="glass-dark p-5">
               <div className="flex items-center gap-2 mb-4">
@@ -148,25 +154,25 @@ export default function ProfilePage() {
               </div>
               <div className="grid grid-cols-3 gap-2 mb-3">
                 <div className="glass p-2 rounded-xl text-center">
-                  <div className="text-lg font-display font-bold text-green-400">{leetcode?.easy}</div>
+                  <div className="text-lg font-display font-bold text-green-400">{leetcode.easy}</div>
                   <div className="text-[10px] text-gray-500 font-mono">Easy</div>
                 </div>
                 <div className="glass p-2 rounded-xl text-center">
-                  <div className="text-lg font-display font-bold text-yellow-400">{leetcode?.medium}</div>
+                  <div className="text-lg font-display font-bold text-yellow-400">{leetcode.medium}</div>
                   <div className="text-[10px] text-gray-500 font-mono">Medium</div>
                 </div>
                 <div className="glass p-2 rounded-xl text-center">
-                  <div className="text-lg font-display font-bold text-red-400">{leetcode?.hard}</div>
+                  <div className="text-lg font-display font-bold text-red-400">{leetcode.hard}</div>
                   <div className="text-[10px] text-gray-500 font-mono">Hard</div>
                 </div>
               </div>
               <div className="flex items-center justify-between">
                 <div className="text-sm font-body text-gray-300">
-                  <span className="gradient-text font-bold text-lg">{leetcode?.solved}</span> solved
+                  <span className="gradient-text font-bold text-lg">{leetcode.solved}</span> solved
                 </div>
                 <div className="flex items-center gap-1 text-xs font-mono text-orange-400">
                   <Zap size={11} className="fill-orange-400" />
-                  {leetcode?.streak} day streak
+                  {leetcode.streak} day streak
                 </div>
               </div>
             </motion.div>
