@@ -36,7 +36,9 @@ router.post(
     auth,
     [
       check('status', 'Status is required').not().isEmpty(),
-      check('skills', 'Skills is required').not().isEmpty()
+      check('skills', 'Skills is required').not().isEmpty(),
+      check('bio', 'Bio cannot exceed 300 characters').isLength({ max: 300 }),
+      check('description', 'Description cannot exceed 500 characters').isLength({ max: 500 })
     ]
   ],
   async (req, res) => {

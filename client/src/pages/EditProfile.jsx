@@ -221,8 +221,11 @@ export default function EditProfile() {
               </div>
               <div>
                 <label className="text-xs font-mono text-gray-400 mb-1.5 block">Bio</label>
-                <textarea value={basics.bio} onChange={e => setBasics({ ...basics, bio: e.target.value })}
-                  className="input-glass resize-none" rows={3} placeholder="Tell the community about yourself..." />
+                <textarea value={basics.bio} onChange={e => setBasics({ ...basics, bio: e.target.value.slice(0, 300) })}
+  className="input-glass resize-none" rows={3} placeholder="Tell the community about yourself..." />
+<p className={`text-right text-xs font-mono mt-1 ${basics.bio.length > 270 ? 'text-red-400' : 'text-gray-600'}`}>
+  {basics.bio.length}/300
+</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -342,8 +345,11 @@ export default function EditProfile() {
                     Currently working here
                   </label>
                   <textarea value={exp.description}
-                    onChange={e => setExperience(experience.map((x, j) => j === i ? { ...x, description: e.target.value } : x))}
-                    className="input-glass text-sm resize-none w-full" rows={2} placeholder="Description (optional)" />
+  onChange={e => setExperience(experience.map((x, j) => j === i ? { ...x, description: e.target.value.slice(0, 500) } : x))}
+  className="input-glass text-sm resize-none w-full" rows={2} placeholder="Description (optional)" />
+<p className={`text-right text-xs font-mono mt-1 ${exp.description.length > 450 ? 'text-red-400' : 'text-gray-600'}`}>
+  {exp.description.length}/500
+</p>
                 </div>
               ))}
               <button onClick={() => setExperience([...experience, { ...emptyExp }])}
