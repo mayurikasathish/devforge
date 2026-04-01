@@ -39,6 +39,7 @@ export default function EditProfile() {
   const [fetching, setFetching] = useState(true);
   const [activeTab, setActiveTab] = useState('basics');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [basics, setBasics] = useState({
     status: '', bio: '', location: '', website: '',
@@ -136,17 +137,15 @@ export default function EditProfile() {
   };
 
   const handleDeleteAccount = async () => {
-    if (!confirm('Delete your account permanently? This cannot be undone.')) return;
-    if (!confirm('Are you absolutely sure? All your projects, rooms and doubts will be deleted.')) return;
-    try {
-      await api.delete('/api/profile');
-      logout();
-      navigate('/');
-      toast.success('Account deleted');
-    } catch {
-      toast.error('Failed to delete account');
-    }
-  };
+  try {
+    await api.delete('/api/profile');
+    logout();
+    navigate('/');
+    toast.success('Account deleted');
+  } catch {
+    toast.error('Failed to delete account');
+  }
+};
 
   const tabs = [
     { id: 'basics', label: 'Basics', icon: User },
@@ -164,15 +163,41 @@ export default function EditProfile() {
   return (
     <div className="max-w-3xl mx-auto px-6 pt-28 pb-16">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        {/* Delete Account Modal */}
+{showDeleteModal && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
+    style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}>
+    <div className="glass-dark p-8 max-w-sm w-full text-center">
+      <div className="w-12 h-12 rounded-xl bg-red-400/10 border border-red-400/20 flex items-center justify-center mx-auto mb-4">
+        <Trash2 size={22} className="text-red-400" />
+      </div>
+      <h2 className="font-display font-bold text-xl text-white mb-2">Delete Account</h2>
+      <p className="text-gray-400 text-sm font-body mb-6 leading-relaxed">
+        This will permanently delete your account, profile, projects, rooms and doubts. This cannot be undone.
+      </p>
+      <div className="flex gap-3">
+        <button onClick={() => setShowDeleteModal(false)}
+          className="btn-ghost flex-1 text-sm py-2.5">
+          Cancel
+        </button>
+        <button onClick={() => { setShowDeleteModal(false); handleDeleteAccount(); }}
+          className="flex-1 py-2.5 rounded-xl text-sm font-body font-medium text-white transition-all"
+          style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)', boxShadow: '0 0 20px rgba(239,68,68,0.3)' }}>
+          Yes, Delete
+        </button>
+      </div>
+    </div>
+  </div>
+)}
         <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div>
             <h1 className="font-display font-bold text-3xl text-white mb-1">Edit Profile</h1>
             <p className="text-gray-400 text-sm font-body">Build your developer identity</p>
           </div>
-          <button onClick={handleDeleteAccount}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-body text-red-400 border border-red-400/20 hover:bg-red-400/10 transition-all">
-            <Trash2 size={14} /> Delete Account
-          </button>
+         <button onClick={() => setShowDeleteModal(true)}
+  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-body text-red-400 border border-red-400/20 hover:bg-red-400/10 transition-all">
+  <Trash2 size={14} /> Delete Account
+</button>
         </div>
 
         {/* Avatar Upload */}
