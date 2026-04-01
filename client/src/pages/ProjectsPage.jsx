@@ -7,9 +7,16 @@ import { Plus, X, Layers, Users, Clock, Zap, Search, Trash2 } from 'lucide-react
 
 const TECH_OPTIONS = ['React','Node.js','Python','MongoDB','PostgreSQL','TypeScript','Next.js','GraphQL','Docker','AWS','Flutter','Django','FastAPI','Redis','Prisma'];
 
-function ProjectCard({ project, onApply, onDelete, currentUserId }) {
+const STATUS_STYLES = {
+  open: { bg: 'rgba(45,212,191,0.1)', border: '1px solid rgba(45,212,191,0.25)', color: '#5eead4', label: 'Open' },
+  in_progress: { bg: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.25)', color: '#c084fc', label: 'In Progress' },
+  completed: { bg: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)', color: '#4ade80', label: 'Completed' },
+};
+
+function ProjectCard({ project, onApply, onDelete, onStatusUpdate, currentUserId }) {
   const hasApplied = project.applicants?.some(a => (a._id || a) === currentUserId);
   const isOwner = (project.user._id || project.user) === currentUserId;
+  const statusStyle = STATUS_STYLES[project.status] || STATUS_STYLES.open;
 
   return (
     <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -24,9 +31,9 @@ function ProjectCard({ project, onApply, onDelete, currentUserId }) {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="tag-aqua text-[10px] px-2 py-0.5 rounded-lg whitespace-nowrap font-mono"
-            style={{ background: 'rgba(45,212,191,0.1)', border: '1px solid rgba(45,212,191,0.25)', color: '#5eead4' }}>
-            {project.status}
+          <span className="text-[10px] px-2 py-0.5 rounded-lg whitespace-nowrap font-mono"
+            style={{ background: statusStyle.bg, border: statusStyle.border, color: statusStyle.color }}>
+            {statusStyle.label}
           </span>
           {isOwner && (
             <button onClick={() => onDelete(project._id)}
@@ -70,6 +77,16 @@ function ProjectCard({ project, onApply, onDelete, currentUserId }) {
             {hasApplied ? 'Applied ✓' : 'Apply'}
           </button>
         )}
+        {isOwner && (
+          <select
+            value={project.status}
+            onChange={e => onStatusUpdate(project._id, e.target.value)}
+            className="text-xs font-mono bg-transparent border border-purple/30 text-purple-light rounded-lg px-2 py-1 cursor-pointer outline-none">
+            <option value="open">Open</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+          </select>
+        )}
       </div>
     </motion.div>
   );
@@ -81,7 +98,7 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
-  const [form, setForm] = useState({ title: '', description: '', techStack: [], rolesNeeded: [], duration: '' });
+  const [form, setForm] = useState({ title: '', description: '', techStack: [], rolesNeeded: [], duration: '', status: 'open' });
   const [techInput, setTechInput] = useState('');
   const [roleInput, setRoleInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -99,7 +116,11 @@ export default function ProjectsPage() {
       setProjects(projects.map(p => p._id === id
         ? { ...p, applicants: [...(p.applicants || []), { _id: user?.id }] } : p));
       toast.success('Application sent!');
-    } catch { toast.error('Could not apply'); }
+    } catch (err) {
+      const msg = err.response?.data?.msg;
+      if (msg === 'Already applied') toast.error('You already applied to this project');
+      else toast.error('Could not apply');
+    }
   };
 
   const handleDelete = async (id) => {
@@ -111,6 +132,14 @@ export default function ProjectsPage() {
     } catch { toast.error('Could not delete'); }
   };
 
+  const handleStatusUpdate = async (id, status) => {
+    try {
+      await api.put(`/api/projects/status/${id}`, { status });
+      setProjects(projects.map(p => p._id === id ? { ...p, status } : p));
+      toast.success('Status updated');
+    } catch { toast.error('Could not update status'); }
+  };
+
   const handleSubmit = async e => {
     e.preventDefault();
     setSubmitting(true);
@@ -118,7 +147,7 @@ export default function ProjectsPage() {
       const res = await api.post('/api/projects', form);
       setProjects([res.data, ...projects]);
       setShowForm(false);
-      setForm({ title: '', description: '', techStack: [], rolesNeeded: [], duration: '' });
+      setForm({ title: '', description: '', techStack: [], rolesNeeded: [], duration: '', status: 'open' });
       toast.success('Project posted!');
     } catch { toast.error('Failed to post project'); }
     finally { setSubmitting(false); }
@@ -166,8 +195,11 @@ export default function ProjectsPage() {
                 </div>
                 <div className="sm:col-span-2">
                   <label className="text-xs font-mono text-gray-400 mb-1.5 block">Description *</label>
-                  <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
+                  <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value.slice(0, 800) })}
                     className="input-glass resize-none w-full" rows={3} placeholder="What are you building? What's the goal?" required />
+                  <p className={`text-right text-xs font-mono mt-1 ${form.description.length > 750 ? 'text-red-400' : 'text-gray-600'}`}>
+                    {form.description.length}/800
+                  </p>
                 </div>
                 <div>
                   <label className="text-xs font-mono text-gray-400 mb-1.5 block">Tech Stack</label>
@@ -224,6 +256,15 @@ export default function ProjectsPage() {
                   <input value={form.duration} onChange={e => setForm({ ...form, duration: e.target.value })}
                     className="input-glass" placeholder="e.g. 2 weeks, 1 month" />
                 </div>
+                <div>
+                  <label className="text-xs font-mono text-gray-400 mb-1.5 block">Status</label>
+                  <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}
+                    className="input-glass">
+                    <option value="open">Open</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
               </div>
               <button type="submit" disabled={submitting} className="btn-primary flex items-center gap-2">
                 {submitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Layers size={14} />}
@@ -260,7 +301,7 @@ export default function ProjectsPage() {
               <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <AnimatePresence>
                   {filterProjects(myProjects).map(p => (
-                    <ProjectCard key={p._id} project={p} onApply={handleApply} onDelete={handleDelete} currentUserId={user?.id} />
+                    <ProjectCard key={p._id} project={p} onApply={handleApply} onDelete={handleDelete} onStatusUpdate={handleStatusUpdate} currentUserId={user?.id} />
                   ))}
                 </AnimatePresence>
               </motion.div>
@@ -282,7 +323,7 @@ export default function ProjectsPage() {
               <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <AnimatePresence>
                   {filterProjects(othersProjects).map(p => (
-                    <ProjectCard key={p._id} project={p} onApply={handleApply} onDelete={handleDelete} currentUserId={user?.id} />
+                    <ProjectCard key={p._id} project={p} onApply={handleApply} onDelete={handleDelete} onStatusUpdate={handleStatusUpdate} currentUserId={user?.id} />
                   ))}
                 </AnimatePresence>
               </motion.div>

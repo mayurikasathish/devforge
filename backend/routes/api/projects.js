@@ -35,9 +35,9 @@ router.post('/', [auth, [
 // @access Public
 router.get('/', async (req, res) => {
   try {
-    const projects = await Project.find({ status: 'open' })
-      .populate('user', ['name', 'avatar'])
-      .sort({ date: -1 });
+    const projects = await Project.find()
+  .populate('user', ['name', 'avatar'])
+  .sort({ date: -1 });
     res.json(projects);
   } catch (err) {
     console.error(err.message);
@@ -113,6 +113,25 @@ router.delete('/:id', auth, async (req, res) => {
     }
     await project.deleteOne();
     res.json({ msg: 'Project removed' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+// @route  PUT api/projects/status/:id
+// @desc   Update project status
+// @access Private
+router.put('/status/:id', auth, async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) return res.status(404).json({ msg: 'Project not found' });
+    if (project.user.toString() !== req.user.id) {
+      return res.status(401).json({ msg: 'Not authorized' });
+    }
+    project.status = req.body.status;
+    await project.save();
+    res.json(project);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
