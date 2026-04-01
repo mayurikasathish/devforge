@@ -18,13 +18,14 @@ function SkillStars({ level }) {
   );
 }
 
-const MOCK_LEETCODE = { solved: 214, easy: 98, medium: 87, hard: 29, streak: 12 };
+
 
 export default function ProfilePage() {
   const { id } = useParams();
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
+  const [leetcode, setLeetcode] = useState(null);
   const [repos, setRepos] = useState([]);
   const [loading, setLoading] = useState(true);
   const isMe = !id || id === 'me';
@@ -36,6 +37,11 @@ export default function ProfilePage() {
           ? await api.get('/api/profile/me')
           : await api.get(`/api/profile/user/${id}`);
         setProfile(profileRes.data);
+        if (data.leetcodeusername) {
+  api.get(`/api/profile/leetcode/${data.leetcodeusername}`)
+    .then(r => setLeetcode(r.data))
+    .catch(() => {});
+}
         const ghUser = profileRes.data.githubusername;
         if (ghUser) {
           api.get(`/api/github/${ghUser}`).then(r => setRepos(r.data || [])).catch(() => {});
@@ -132,7 +138,7 @@ export default function ProfilePage() {
           </motion.div>
 
           {/* LeetCode Stats */}
-          {leetcodeusername && (
+          {leetcodeusername && leetcode &&(
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0, transition: { delay: 0.1 } }}
               className="glass-dark p-5">
               <div className="flex items-center gap-2 mb-4">
@@ -142,25 +148,25 @@ export default function ProfilePage() {
               </div>
               <div className="grid grid-cols-3 gap-2 mb-3">
                 <div className="glass p-2 rounded-xl text-center">
-                  <div className="text-lg font-display font-bold text-green-400">{MOCK_LEETCODE.easy}</div>
+                  <div className="text-lg font-display font-bold text-green-400">{leetcode?.easy}</div>
                   <div className="text-[10px] text-gray-500 font-mono">Easy</div>
                 </div>
                 <div className="glass p-2 rounded-xl text-center">
-                  <div className="text-lg font-display font-bold text-yellow-400">{MOCK_LEETCODE.medium}</div>
+                  <div className="text-lg font-display font-bold text-yellow-400">{leetcode?.medium}</div>
                   <div className="text-[10px] text-gray-500 font-mono">Medium</div>
                 </div>
                 <div className="glass p-2 rounded-xl text-center">
-                  <div className="text-lg font-display font-bold text-red-400">{MOCK_LEETCODE.hard}</div>
+                  <div className="text-lg font-display font-bold text-red-400">{leetcode?.hard}</div>
                   <div className="text-[10px] text-gray-500 font-mono">Hard</div>
                 </div>
               </div>
               <div className="flex items-center justify-between">
                 <div className="text-sm font-body text-gray-300">
-                  <span className="gradient-text font-bold text-lg">{MOCK_LEETCODE.solved}</span> solved
+                  <span className="gradient-text font-bold text-lg">{leetcode?.solved}</span> solved
                 </div>
                 <div className="flex items-center gap-1 text-xs font-mono text-orange-400">
                   <Zap size={11} className="fill-orange-400" />
-                  {MOCK_LEETCODE.streak} day streak
+                  {leetcode?.streak} day streak
                 </div>
               </div>
             </motion.div>
