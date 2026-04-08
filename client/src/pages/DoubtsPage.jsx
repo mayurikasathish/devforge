@@ -4,6 +4,7 @@ import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { Plus, X, HelpCircle, ChevronUp, Eye, MessageSquare, Send, UserX, Trash2 } from 'lucide-react';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 const ALL_TAGS = ['DSA','OS','DBMS','Networks','React','System Design','Python','Java','Web Dev','ML','DevOps','General'];
 
@@ -132,6 +133,7 @@ export default function DoubtsPage() {
   const [activeTab, setActiveTab] = useState('others'); // 'mine' | 'others'
   const [form, setForm] = useState({ title: '', body: '', tags: [], anonymous: true });
   const [submitting, setSubmitting] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ open: false, id: null });
 
   const load = async (tag = '') => {
     setLoading(true);
@@ -178,12 +180,16 @@ export default function DoubtsPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this doubt?')) return;
+    setConfirmModal({ open: true, id });
+  };
+
+  const confirmDelete = async () => {
     try {
-      await api.delete(`/api/doubts/${id}`);
-      setDoubts(doubts.filter(d => d._id !== id));
+      await api.delete(`/api/doubts/${confirmModal.id}`);
+      setDoubts(doubts.filter(d => d._id !== confirmModal.id));
       toast.success('Doubt deleted');
     } catch { toast.error('Could not delete'); }
+    finally { setConfirmModal({ open: false, id: null }); }
   };
 
   const handleAnswerSubmit = async (doubtId, text, anonymous) => {
@@ -203,6 +209,13 @@ export default function DoubtsPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-6 pt-28 pb-16">
+      <ConfirmModal
+        isOpen={confirmModal.open}
+        title="Delete Doubt"
+        message="This will permanently delete your doubt and all its answers. This cannot be undone."
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmModal({ open: false, id: null })}
+      />
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-start justify-between mb-8 flex-wrap gap-4">
         <div>
           <h1 className="font-display font-bold text-4xl text-white mb-1">

@@ -5,6 +5,7 @@ import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { Plus, X, Users, Zap, Calendar, ArrowRight, Trash2 } from 'lucide-react';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 const TECH_OPTIONS = ['React','Node.js','Python','MongoDB','TypeScript','Next.js','Django','FastAPI','Flutter','Go'];
 
@@ -96,6 +97,7 @@ export default function RoomsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', goal: '', deadline: '', techStack: [] });
   const [submitting, setSubmitting] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ open: false, id: null });
 
   useEffect(() => {
     api.get('/api/rooms').then(res => setRooms(res.data)).catch(() => {}).finally(() => setLoading(false));
@@ -127,12 +129,16 @@ export default function RoomsPage() {
   };
 
   const handleDelete = async id => {
-    if (!confirm('Delete this room?')) return;
+    setConfirmModal({ open: true, id });
+  };
+
+  const confirmDelete = async () => {
     try {
-      await api.delete(`/api/rooms/${id}`);
-      setRooms(rooms.filter(r => r._id !== id));
+      await api.delete(`/api/rooms/${confirmModal.id}`);
+      setRooms(rooms.filter(r => r._id !== confirmModal.id));
       toast.success('Room deleted');
     } catch { toast.error('Could not delete'); }
+    finally { setConfirmModal({ open: false, id: null }); }
   };
 
   const toggleTech = t => setForm(f => ({
@@ -144,6 +150,14 @@ export default function RoomsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 pt-28 pb-16">
+      <ConfirmModal
+        isOpen={confirmModal.open}
+        title="Delete Room"
+        message="This will permanently delete this room and remove all members. This cannot be undone."
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmModal({ open: false, id: null })}
+      />
+
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-start justify-between mb-8 flex-wrap gap-4">
         <div>
           <h1 className="font-display font-bold text-4xl text-white mb-1">
@@ -211,7 +225,6 @@ export default function RoomsPage() {
         </div>
       ) : (
         <div className="space-y-10">
-          {/* My Rooms */}
           {myRooms.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-4">
@@ -227,7 +240,6 @@ export default function RoomsPage() {
             </div>
           )}
 
-          {/* Others' Rooms */}
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Users size={15} style={{ color: '#2dd4bf' }} />

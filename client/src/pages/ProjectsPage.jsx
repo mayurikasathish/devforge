@@ -4,6 +4,7 @@ import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { Plus, X, Layers, Users, Clock, Zap, Search, Trash2 } from 'lucide-react';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 const TECH_OPTIONS = ['React','Node.js','Python','MongoDB','PostgreSQL','TypeScript','Next.js','GraphQL','Docker','AWS','Flutter','Django','FastAPI','Redis','Prisma'];
 
@@ -102,6 +103,7 @@ export default function ProjectsPage() {
   const [techInput, setTechInput] = useState('');
   const [roleInput, setRoleInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ open: false, id: null });
 
   useEffect(() => {
     api.get('/api/projects')
@@ -124,12 +126,16 @@ export default function ProjectsPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this project?')) return;
+    setConfirmModal({ open: true, id });
+  };
+
+  const confirmDelete = async () => {
     try {
-      await api.delete(`/api/projects/${id}`);
-      setProjects(projects.filter(p => p._id !== id));
+      await api.delete(`/api/projects/${confirmModal.id}`);
+      setProjects(projects.filter(p => p._id !== confirmModal.id));
       toast.success('Project deleted');
     } catch { toast.error('Could not delete'); }
+    finally { setConfirmModal({ open: false, id: null }); }
   };
 
   const handleStatusUpdate = async (id, status) => {
@@ -167,6 +173,13 @@ export default function ProjectsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 pt-28 pb-16">
+      <ConfirmModal
+        isOpen={confirmModal.open}
+        title="Delete Project"
+        message="This will permanently delete your project and all applications. This cannot be undone."
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmModal({ open: false, id: null })}
+      />
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-start justify-between mb-8 flex-wrap gap-4">
         <div>
           <h1 className="font-display font-bold text-4xl text-white mb-1">
