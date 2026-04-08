@@ -36,8 +36,8 @@ router.post('/', [auth, [
 router.get('/', async (req, res) => {
   try {
     const projects = await Project.find()
-  .populate('user', ['name', 'avatar'])
-  .sort({ date: -1 });
+      .populate('user', ['name', 'avatar'])
+      .sort({ date: -1 });
     res.json(projects);
   } catch (err) {
     console.error(err.message);
@@ -126,11 +126,35 @@ router.put('/status/:id', auth, async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
     if (!project) return res.status(404).json({ msg: 'Project not found' });
-    if (project.user.toString() !== req.user.id) {
+    if (project.user.toString() !== req.user.id)
       return res.status(401).json({ msg: 'Not authorized' });
-    }
     project.status = req.body.status;
     await project.save();
+    res.json(project);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+// @route  PUT api/projects/:id
+// @desc   Edit a project
+// @access Private
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) return res.status(404).json({ msg: 'Project not found' });
+    if (project.user.toString() !== req.user.id)
+      return res.status(401).json({ msg: 'Not authorized' });
+    const { title, description, techStack, rolesNeeded, duration, status } = req.body;
+    if (title) project.title = title;
+    if (description) project.description = description;
+    if (techStack) project.techStack = techStack;
+    if (rolesNeeded) project.rolesNeeded = rolesNeeded;
+    if (duration !== undefined) project.duration = duration;
+    if (status) project.status = status;
+    await project.save();
+    await project.populate('user', ['name', 'avatar']);
     res.json(project);
   } catch (err) {
     console.error(err.message);
