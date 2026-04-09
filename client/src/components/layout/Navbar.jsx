@@ -36,7 +36,7 @@ export default function Navbar() {
             style={{ background: 'linear-gradient(135deg,#a855f7,#f472b6)' }}>
             <Code2 size={16} className="text-white" />
           </div>
-          <span className="font-display font-bold text-lg gradient-text">DevForge</span>
+          <span className="font-display font-bold text-lg gradient-text">Devv</span>
         </Link>
 
         {/* Desktop links */}
