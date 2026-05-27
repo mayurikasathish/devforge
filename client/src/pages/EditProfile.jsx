@@ -289,7 +289,7 @@ export default function EditProfile() {
                 <div>
                   <label className="text-xs font-mono text-gray-400 mb-1.5 block">LinkedIn</label>
                   <input value={basics.linkedin} onChange={e => setBasics({ ...basics, linkedin: e.target.value })}
-                    className="input-glass" placeholder="linkedin.com/in/you" />
+                    className="input-glass" placeholder="https://linkedin.com/in/you" />
                 </div>
               </div>
               <div>
