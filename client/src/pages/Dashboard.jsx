@@ -22,6 +22,38 @@ function SkillStars({ level }) {
   );
 }
 
+const calculateMatch = (
+  mySkills = [],
+  otherSkills = [],
+  availability
+) => {
+
+  if (!mySkills.length || !otherSkills.length)
+    return 0;
+
+  const mySkillNames = mySkills.map(s =>
+    s.name.toLowerCase()
+  );
+
+  const otherSkillNames = otherSkills.map(s =>
+    s.name.toLowerCase()
+  );
+
+  const common = mySkillNames.filter(skill =>
+    otherSkillNames.includes(skill)
+  );
+
+  let score =
+    (common.length / mySkillNames.length) * 100;
+
+  if (availability === 'available')
+    score += 10;
+
+  if (availability === 'open_to_collaborate')
+    score += 5;
+
+  return Math.min(100, Math.round(score));
+};
 function ProjectModal({ project, onClose, onApply, currentUserId }) {
   if (!project) return null;
   const isOwner = (project.user?._id || project.user) === currentUserId;
@@ -251,25 +283,72 @@ export default function Dashboard() {
               </Link>
             </div>
             {suggested.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {suggested.map(p => (
-                  <Link key={p._id} to={`/profile/${p.user._id}`}
-                    className="glass p-4 rounded-xl card-hover flex items-center gap-3 group">
-                    <img src={p.user.avatar} alt={p.user.name}
-                      className="w-10 h-10 rounded-full border border-purple/30 object-cover flex-shrink-0" />
-                    <div className="min-w-0">
-                      <div className="text-sm font-display font-semibold text-white truncate">{p.user.name}</div>
-                      <div className="text-xs text-gray-500 font-body truncate">{p.status}</div>
-                      <div className="flex gap-1 mt-1 flex-wrap">
-                        {p.skills?.slice(0, 2).map(s => (
-                          <span key={s.name} className="tag text-[10px] px-2 py-0.5">{s.name}</span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className={`ml-auto w-2 h-2 rounded-full flex-shrink-0 ${p.availability === 'available' ? 'bg-green-400' : p.availability === 'open_to_collaborate' ? 'bg-yellow-400' : 'bg-red-400'}`} />
-                  </Link>
-                ))}
-              </div>
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  {suggested.map(p => {
+    const matchPercentage = calculateMatch(
+      profile?.skills || [],
+      p.skills || [],
+      p.availability
+    );
+
+    return (
+      <Link
+        key={p._id}
+        to={`/profile/${p.user._id}`}
+        className="glass p-4 rounded-xl card-hover flex items-center gap-3 group"
+      >
+        <img
+          src={p.user.avatar}
+          alt={p.user.name}
+          className="w-10 h-10 rounded-full border border-purple/30 object-cover flex-shrink-0"
+        />
+
+        <div className="min-w-0">
+          <div className="text-sm font-display font-semibold text-white truncate">
+            {p.user.name}
+          </div>
+
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs text-gray-500 font-body truncate">
+              {p.status}
+            </span>
+
+            <span
+              className="text-[10px] px-2 py-0.5 rounded-full font-mono"
+              style={{
+                background: 'rgba(168,85,247,0.15)',
+                color: '#c084fc'
+              }}
+            >
+              {matchPercentage}% Match
+            </span>
+          </div>
+
+          <div className="flex gap-1 mt-1 flex-wrap">
+            {p.skills?.slice(0, 2).map(s => (
+              <span
+                key={s.name}
+                className="tag text-[10px] px-2 py-0.5"
+              >
+                {s.name}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div
+          className={`ml-auto w-2 h-2 rounded-full flex-shrink-0 ${
+            p.availability === 'available'
+              ? 'bg-green-400'
+              : p.availability === 'open_to_collaborate'
+              ? 'bg-yellow-400'
+              : 'bg-red-400'
+          }`}
+        />
+      </Link>
+    );
+  })}
+</div>
             ) : (
               <p className="text-gray-500 text-sm text-center py-6 font-body">No suggestions yet. Add skills to get matched!</p>
             )}
