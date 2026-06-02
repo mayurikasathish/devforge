@@ -105,11 +105,19 @@ const userProfileSkills = myProfile?.skills || [];
 
   useEffect(() => {
     api.get('/api/profile').then(res => {
-      // // Exclude own profile
-      // const others = res.data.filter(p => p.user._id !== user?.id && p.user._id !== user?._id);
-      setProfiles(res.data);
-    setFiltered(res.data);;
-    }).catch(() => {}).finally(() => setLoading(false));
+  console.log("API DATA:", res.data);
+  res.data.forEach(p => {
+  console.log(
+    "PROFILE:",
+    p.user?.name,
+    p.user?._id,
+    p.skills
+  );
+});
+
+  setProfiles(res.data);
+  setFiltered(res.data);
+}).catch(() => {}).finally(() => setLoading(false));
   }, [user]);
 
   useEffect(() => {
