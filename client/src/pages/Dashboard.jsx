@@ -22,14 +22,8 @@ function SkillStars({ level }) {
   );
 }
 
-const calculateMatch = (
-  mySkills = [],
-  otherSkills = [],
-  availability
-) => {
-
-  if (!mySkills.length || !otherSkills.length)
-    return 0;
+const calculateMatch = (mySkills = [], otherSkills = []) => {
+  if (!mySkills.length || !otherSkills.length) return 0;
 
   const mySkillNames = mySkills.map(s =>
     s.name.toLowerCase()
@@ -43,17 +37,11 @@ const calculateMatch = (
     otherSkillNames.includes(skill)
   );
 
-  let score =
-    (common.length / mySkillNames.length) * 100;
-
-  if (availability === 'available')
-    score += 10;
-
-  if (availability === 'open_to_collaborate')
-    score += 5;
-
-  return Math.min(100, Math.round(score));
+  return Math.round(
+    (common.length / mySkillNames.length) * 100
+  );
 };
+
 function ProjectModal({ project, onClose, onApply, currentUserId }) {
   if (!project) return null;
   const isOwner = (project.user?._id || project.user) === currentUserId;
@@ -290,6 +278,14 @@ export default function Dashboard() {
       p.skills || [],
       p.availability
     );
+    const commonSkills =
+  profile?.skills?.filter(mySkill =>
+    p.skills?.some(
+      otherSkill =>
+        otherSkill.name.toLowerCase() ===
+        mySkill.name.toLowerCase()
+    )
+  ) || [];
 
     return (
       <Link
@@ -324,16 +320,17 @@ export default function Dashboard() {
             </span>
           </div>
 
-          <div className="flex gap-1 mt-1 flex-wrap">
-            {p.skills?.slice(0, 2).map(s => (
-              <span
-                key={s.name}
-                className="tag text-[10px] px-2 py-0.5"
-              >
-                {s.name}
-              </span>
-            ))}
-          </div>
+          <div className="flex items-center gap-2 mt-1">
+  <span
+    className="text-[10px] px-2 py-0.5 rounded-full font-mono"
+    style={{
+      background: 'rgba(236,72,153,0.12)',
+      color: '#f9a8d4'
+    }}
+  >
+    {commonSkills.length} Shared Skills
+  </span>
+</div>
         </div>
 
         <div

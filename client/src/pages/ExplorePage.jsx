@@ -7,7 +7,11 @@ import { Search, Star, MapPin, Github } from 'lucide-react';
 
 const SKILL_FILTERS = ['React','Node.js','Python','Java','TypeScript','MongoDB','Next.js','Docker','AWS','DSA','ML','C++'];
 
-function DevCard({ profile }) {
+function DevCard({
+  profile,
+  matchPercentage,
+  sharedSkills
+}) {
   const { user, status, skills, location, githubusername, availability } = profile;
   const availColor = availability === 'available' ? '#4ade80' : availability === 'open_to_collaborate' ? '#facc15' : '#f87171';
   return (
@@ -24,6 +28,24 @@ function DevCard({ profile }) {
           <div className="min-w-0 flex-1">
             <h3 className="font-display font-semibold text-white text-sm truncate">{user.name}</h3>
             <p className="text-xs text-gray-500 font-body truncate">{status}</p>
+            <div className="flex gap-2 mt-2 flex-wrap">
+  <span
+  className={`text-[10px] px-2 py-0.5 rounded-full border font-mono
+    ${
+      matchPercentage >= 70
+        ? 'bg-green-500/10 text-green-400 border-green-500/30'
+        : matchPercentage >= 40
+        ? 'bg-purple/20 text-purple border-purple/30'
+        : 'bg-gray-500/10 text-gray-400 border-gray-500/30'
+    }`}
+>
+  {matchPercentage}% Match
+</span>
+
+ <span className="tag text-[10px] px-2 py-0.5 opacity-80">
+  {sharedSkills} Shared Skills
+</span>
+</div>
             {location && (
               <div className="flex items-center gap-1 text-xs text-gray-600 mt-1">
                 <MapPin size={10} />{location}
@@ -59,13 +81,34 @@ export default function ExplorePage() {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
   const [loading, setLoading] = useState(true);
+  const myProfile = profiles.find(
+  p => p.user._id === user?.id ||
+       p.user._id === user?._id
+);
+
+const userProfileSkills = myProfile?.skills || [];
+  const calculateMatch = (mySkills = [], otherSkills = []) => {
+  if (!mySkills.length) return 0;
+
+  const common = mySkills.filter(mySkill =>
+    otherSkills.some(
+      otherSkill =>
+        otherSkill.name.toLowerCase() ===
+        mySkill.name.toLowerCase()
+    )
+  );
+
+  return Math.round(
+    (common.length / mySkills.length) * 100
+  );
+};
 
   useEffect(() => {
     api.get('/api/profile').then(res => {
-      // Exclude own profile
-      const others = res.data.filter(p => p.user._id !== user?.id && p.user._id !== user?._id);
-      setProfiles(others);
-      setFiltered(others);
+      // // Exclude own profile
+      // const others = res.data.filter(p => p.user._id !== user?.id && p.user._id !== user?._id);
+      setProfiles(res.data);
+    setFiltered(res.data);;
     }).catch(() => {}).finally(() => setLoading(false));
   }, [user]);
 
@@ -83,7 +126,27 @@ export default function ExplorePage() {
         p.location?.toLowerCase().includes(q)
       );
     }
-    setFiltered(result);
+    result = result.filter(
+  p =>
+    p.user._id !== user?.id &&
+    p.user._id !== user?._id
+);
+
+result.sort((a, b) => {
+  const matchA = calculateMatch(
+    userProfileSkills,
+    a.skills || []
+  );
+
+  const matchB = calculateMatch(
+    userProfileSkills,
+    b.skills || []
+  );
+
+  return matchB - matchA;
+});
+
+setFiltered(result);
   }, [search, activeFilter, profiles]);
 
   return (
@@ -128,7 +191,27 @@ export default function ExplorePage() {
         <>
           <p className="text-xs font-mono text-gray-600 mb-4">{filtered.length} developer{filtered.length !== 1 ? 's' : ''} found</p>
           <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map(p => <DevCard key={p._id} profile={p} />)}
+           {filtered.map(p => {
+  const matchPercentage = calculateMatch(
+    userProfileSkills,
+    p.skills || []
+  );
+
+  const sharedSkills = userProfileSkills.filter(mySkill =>
+    (p.skills || []).some(
+      s => s.name.toLowerCase() === mySkill.name.toLowerCase()
+    )
+  ).length;
+
+  return (
+    <DevCard
+      key={p._id}
+      profile={p}
+      matchPercentage={matchPercentage}
+      sharedSkills={sharedSkills}
+    />
+  );
+})}
           </motion.div>
         </>
       )}
