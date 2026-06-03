@@ -7,12 +7,6 @@ import { Search, Star, MapPin, Github } from 'lucide-react';
 
 const SKILL_FILTERS = ['React','Node.js','Python','Java','TypeScript','MongoDB','Next.js','Docker','AWS','DSA','ML','C++'];
 
-<<<<<<< HEAD
-function DevCard({
-  profile,
-  matchPercentage,
-  sharedSkills
-=======
 const calculateMatch = (
   mySkills = [],
   otherSkills = [],
@@ -54,7 +48,6 @@ const calculateMatch = (
 function DevCard({
   profile,
   mySkills = []
->>>>>>> 0c7c3b3 (added color to matched people based on % and added the feature to explore page)
 }) {
   const { user, status, skills, location, githubusername, availability } = profile;
   const matchPercentage = calculateMatch(
@@ -265,29 +258,6 @@ setFiltered(result);
         <>
           <p className="text-xs font-mono text-gray-600 mb-4">{filtered.length} developer{filtered.length !== 1 ? 's' : ''} found</p>
           <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-<<<<<<< HEAD
-           {filtered.map(p => {
-  const matchPercentage = calculateMatch(
-    userProfileSkills,
-    p.skills || []
-  );
-
-  const sharedSkills = userProfileSkills.filter(mySkill =>
-    (p.skills || []).some(
-      s => s.name.toLowerCase() === mySkill.name.toLowerCase()
-    )
-  ).length;
-
-  return (
-    <DevCard
-      key={p._id}
-      profile={p}
-      matchPercentage={matchPercentage}
-      sharedSkills={sharedSkills}
-    />
-  );
-})}
-=======
             {sortedFiltered.map(p => (
   <DevCard
     key={p._id}
@@ -295,7 +265,6 @@ setFiltered(result);
     mySkills={myProfile?.skills || []}
   />
 ))}
->>>>>>> 0c7c3b3 (added color to matched people based on % and added the feature to explore page)
           </motion.div>
         </>
       )}
