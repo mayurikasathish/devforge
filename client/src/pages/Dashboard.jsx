@@ -310,14 +310,7 @@ export default function Dashboard() {
       p.skills || [],
       p.availability
     );
-    const commonSkills =
-  profile?.skills?.filter(mySkill =>
-    p.skills?.some(
-      otherSkill =>
-        otherSkill.name.toLowerCase() ===
-        mySkill.name.toLowerCase()
-    )
-  ) || [];
+    
 
     const mySkillNames = (profile?.skills || []).map(
   s => s.name?.toLowerCase()
