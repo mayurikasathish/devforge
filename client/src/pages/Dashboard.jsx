@@ -22,24 +22,53 @@ function SkillStars({ level }) {
   );
 }
 
+<<<<<<< HEAD
 const calculateMatch = (mySkills = [], otherSkills = []) => {
   if (!mySkills.length || !otherSkills.length) return 0;
+=======
+const calculateMatch = (
+  mySkills = [],
+  otherSkills = [],
+  availability
+) => {
+  if (!mySkills.length || !otherSkills.length)
+    return 0;
+>>>>>>> 0c7c3b3 (added color to matched people based on % and added the feature to explore page)
 
   const mySkillNames = mySkills.map(s =>
-    s.name.toLowerCase()
+    s.name?.toLowerCase().trim()
   );
 
   const otherSkillNames = otherSkills.map(s =>
-    s.name.toLowerCase()
+    s.name?.toLowerCase().trim()
   );
 
   const common = mySkillNames.filter(skill =>
     otherSkillNames.includes(skill)
   );
 
+<<<<<<< HEAD
   return Math.round(
     (common.length / mySkillNames.length) * 100
   );
+=======
+  const uniqueSkills = new Set([
+    ...mySkillNames,
+    ...otherSkillNames
+  ]);
+
+  let score =
+    (common.length / uniqueSkills.size) * 100;
+
+  // small availability bonus
+  if (availability === "available")
+    score += 5;
+
+  if (availability === "open_to_collaborate")
+    score += 3;
+
+  return Math.min(100, Math.round(score));
+>>>>>>> 0c7c3b3 (added color to matched people based on % and added the feature to explore page)
 };
 
 function ProjectModal({ project, onClose, onApply, currentUserId }) {
@@ -174,6 +203,20 @@ export default function Dashboard() {
     } catch { toast.error('Could not apply'); }
   };
 
+ const sortedSuggested = [...suggested]
+  .sort((a, b) =>
+    calculateMatch(
+      profile?.skills || [],
+      b.skills || [],
+      b.availability
+    ) -
+    calculateMatch(
+      profile?.skills || [],
+      a.skills || [],
+      a.availability
+    )
+  );
+
   if (loading) return (
     <div className="min-h-screen pt-28 flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-purple rounded-full border-t-transparent animate-spin" />
@@ -272,7 +315,7 @@ export default function Dashboard() {
             </div>
             {suggested.length > 0 ? (
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-  {suggested.map(p => {
+  {sortedSuggested.map(p => {
     const matchPercentage = calculateMatch(
       profile?.skills || [],
       p.skills || [],
@@ -286,6 +329,22 @@ export default function Dashboard() {
         mySkill.name.toLowerCase()
     )
   ) || [];
+
+    const mySkillNames = (profile?.skills || []).map(
+  s => s.name?.toLowerCase()
+);
+
+const otherSkillNames = (p.skills || []).map(
+  s => s.name?.toLowerCase()
+);
+
+const commonSkills = mySkillNames.filter(skill =>
+  otherSkillNames.includes(skill)
+);
+
+const commonCount = commonSkills.length;
+
+
 
     return (
       <Link
@@ -319,6 +378,9 @@ export default function Dashboard() {
               {matchPercentage}% Match
             </span>
           </div>
+          <div className="text-[10px] text-gray-500 font-mono mt-1">
+  {commonCount} Common Skill{commonCount !== 1 ? "s" : ""}
+</div>
 
           <div className="flex items-center gap-2 mt-1">
   <span

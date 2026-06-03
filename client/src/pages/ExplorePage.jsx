@@ -7,17 +7,97 @@ import { Search, Star, MapPin, Github } from 'lucide-react';
 
 const SKILL_FILTERS = ['React','Node.js','Python','Java','TypeScript','MongoDB','Next.js','Docker','AWS','DSA','ML','C++'];
 
+<<<<<<< HEAD
 function DevCard({
   profile,
   matchPercentage,
   sharedSkills
+=======
+const calculateMatch = (
+  mySkills = [],
+  otherSkills = [],
+  availability
+) => {
+
+  if (!mySkills.length || !otherSkills.length)
+    return 0;
+
+  const mySkillNames = mySkills.map(
+    s => s.name?.toLowerCase().trim()
+  );
+
+  const otherSkillNames = otherSkills.map(
+    s => s.name?.toLowerCase().trim()
+  );
+
+  const common = mySkillNames.filter(skill =>
+    otherSkillNames.includes(skill)
+  );
+
+  const uniqueSkills = new Set([
+    ...mySkillNames,
+    ...otherSkillNames
+  ]);
+
+  let score =
+    (common.length / uniqueSkills.size) * 100;
+
+  if (availability === 'available')
+    score += 5;
+
+  if (availability === 'open_to_collaborate')
+    score += 3;
+
+  return Math.min(100, Math.round(score));
+};
+
+function DevCard({
+  profile,
+  mySkills = []
+>>>>>>> 0c7c3b3 (added color to matched people based on % and added the feature to explore page)
 }) {
   const { user, status, skills, location, githubusername, availability } = profile;
+  const matchPercentage = calculateMatch(
+  mySkills,
+  skills || [],
+  availability
+);
+
+const mySkillNames = mySkills.map(
+  s => s.name?.toLowerCase()
+);
+
+const otherSkillNames = (skills || []).map(
+  s => s.name?.toLowerCase()
+);
+
+const commonSkills = mySkillNames.filter(skill =>
+  otherSkillNames.includes(skill)
+);
+
+const cardStyle =
+  matchPercentage > 50
+    ? {
+        border: '1px solid rgba(34,197,94,0.5)',
+        boxShadow: '0 0 25px rgba(34,197,94,0.2)'
+      }
+    : matchPercentage >= 20
+    ? {
+        border: '1px solid rgba(59,130,246,0.5)',
+        boxShadow: '0 0 25px rgba(59,130,246,0.15)'
+      }
+    : {};
+
+const commonCount = commonSkills.length;
   const availColor = availability === 'available' ? '#4ade80' : availability === 'open_to_collaborate' ? '#facc15' : '#f87171';
   return (
     <motion.div layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.3 }}>
-      <Link to={`/profile/${user._id}`} className="glass-dark p-5 card-hover flex flex-col gap-4 block">
+      <Link
+  to={`/profile/${user._id}`}
+  className="glass-dark p-5 card-hover flex flex-col gap-4 block"
+  style={cardStyle}
+>
         <div className="flex items-start gap-3">
           <div className="relative flex-shrink-0">
             <img src={user.avatar} alt={user.name}
@@ -28,23 +108,23 @@ function DevCard({
           <div className="min-w-0 flex-1">
             <h3 className="font-display font-semibold text-white text-sm truncate">{user.name}</h3>
             <p className="text-xs text-gray-500 font-body truncate">{status}</p>
-            <div className="flex gap-2 mt-2 flex-wrap">
-  <span
-  className={`text-[10px] px-2 py-0.5 rounded-full border font-mono
-    ${
-      matchPercentage >= 70
-        ? 'bg-green-500/10 text-green-400 border-green-500/30'
-        : matchPercentage >= 40
-        ? 'bg-purple/20 text-purple border-purple/30'
-        : 'bg-gray-500/10 text-gray-400 border-gray-500/30'
-    }`}
->
-  {matchPercentage}% Match
-</span>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
 
- <span className="tag text-[10px] px-2 py-0.5 opacity-80">
-  {sharedSkills} Shared Skills
-</span>
+  <span
+    className="text-[10px] px-2 py-0.5 rounded-full font-mono"
+    style={{
+      background: 'rgba(168,85,247,0.15)',
+      color: '#c084fc'
+    }}
+  >
+    {matchPercentage}% Match
+  </span>
+
+  <span className="text-[10px] text-gray-500 font-mono">
+    {commonCount} Common Skill
+    {commonCount !== 1 ? 's' : ''}
+  </span>
+
 </div>
             {location && (
               <div className="flex items-center gap-1 text-xs text-gray-600 mt-1">
@@ -81,6 +161,7 @@ export default function ExplorePage() {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
   const [loading, setLoading] = useState(true);
+<<<<<<< HEAD
   const myProfile = profiles.find(
   p => p.user._id === user?.id ||
        p.user._id === user?._id
@@ -119,6 +200,30 @@ const userProfileSkills = myProfile?.skills || [];
   setFiltered(res.data);
 }).catch(() => {}).finally(() => setLoading(false));
   }, [user]);
+=======
+  const [myProfile, setMyProfile] = useState(null);
+
+useEffect(() => {
+
+  api.get('/api/profile/me')
+    .then(res => setMyProfile(res.data))
+    .catch(() => {});
+
+  api.get('/api/profile')
+    .then(res => {
+      const others = res.data.filter(
+        p => p.user._id !== user?.id &&
+             p.user._id !== user?._id
+      );
+
+      setProfiles(others);
+      setFiltered(others);
+    })
+    .catch(() => {})
+    .finally(() => setLoading(false));
+
+}, [user]);
+>>>>>>> 0c7c3b3 (added color to matched people based on % and added the feature to explore page)
 
   useEffect(() => {
     let result = profiles;
@@ -156,6 +261,8 @@ result.sort((a, b) => {
 
 setFiltered(result);
   }, [search, activeFilter, profiles]);
+
+  const sortedFiltered = [...filtered].sort((a, b) => { const matchA = calculateMatch( myProfile?.skills || [], a.skills || [], a.availability ); const matchB = calculateMatch( myProfile?.skills || [], b.skills || [], b.availability ); return matchB - matchA; });
 
   return (
     <div className="max-w-7xl mx-auto px-6 pt-28 pb-16">
@@ -199,6 +306,7 @@ setFiltered(result);
         <>
           <p className="text-xs font-mono text-gray-600 mb-4">{filtered.length} developer{filtered.length !== 1 ? 's' : ''} found</p>
           <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+<<<<<<< HEAD
            {filtered.map(p => {
   const matchPercentage = calculateMatch(
     userProfileSkills,
@@ -220,6 +328,15 @@ setFiltered(result);
     />
   );
 })}
+=======
+            {sortedFiltered.map(p => (
+  <DevCard
+    key={p._id}
+    profile={p}
+    mySkills={myProfile?.skills || []}
+  />
+))}
+>>>>>>> 0c7c3b3 (added color to matched people based on % and added the feature to explore page)
           </motion.div>
         </>
       )}
