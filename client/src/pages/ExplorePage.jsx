@@ -197,24 +197,26 @@ useEffect(() => {
     p.user._id !== user?._id
 );
 
-result.sort((a, b) => {
-  const matchA = calculateMatch(
-    userProfileSkills,
-    a.skills || []
-  );
 
-  const matchB = calculateMatch(
-    userProfileSkills,
-    b.skills || []
-  );
-
-  return matchB - matchA;
-});
 
 setFiltered(result);
   }, [search, activeFilter, profiles]);
 
-  const sortedFiltered = [...filtered].sort((a, b) => { const matchA = calculateMatch( myProfile?.skills || [], a.skills || [], a.availability ); const matchB = calculateMatch( myProfile?.skills || [], b.skills || [], b.availability ); return matchB - matchA; });
+ const sortedFiltered = [...filtered].sort((a, b) => {
+  const matchA = calculateMatch(
+    myProfile?.skills || [],
+    a.skills || [],
+    a.availability
+  );
+
+  const matchB = calculateMatch(
+    myProfile?.skills || [],
+    b.skills || [],
+    b.availability
+  );
+
+  return matchB - matchA;
+});
 
   return (
     <div className="max-w-7xl mx-auto px-6 pt-28 pb-16">
