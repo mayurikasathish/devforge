@@ -13,6 +13,7 @@ import ProjectsPage from './pages/ProjectsPage';
 import DoubtsPage from './pages/DoubtsPage';
 import RoomsPage from './pages/RoomsPage';
 import RoomDetail from './pages/RoomDetail';
+import MessagesPage from './pages/MessagesPage';   // ← NEW
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -44,6 +45,9 @@ function AppRoutes() {
             <Route path="/doubts" element={<ProtectedRoute><DoubtsPage /></ProtectedRoute>} />
             <Route path="/rooms" element={<ProtectedRoute><RoomsPage /></ProtectedRoute>} />
             <Route path="/rooms/:id" element={<ProtectedRoute><RoomDetail /></ProtectedRoute>} />
+            {/* ── Messaging ── */}
+            <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+            <Route path="/messages/:peerId" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
           </Routes>
         </div>
       </div>

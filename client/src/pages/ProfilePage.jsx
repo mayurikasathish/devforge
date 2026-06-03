@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer } from 'recharts';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import { Star, Github, ExternalLink, Twitter, Linkedin, MapPin, Globe, Edit2, Briefcase, GraduationCap, Code2, Zap, ArrowRight } from 'lucide-react';
+import { Star, Github, ExternalLink, MessageSquare, Twitter, Linkedin, MapPin, Globe, Edit2, Briefcase, GraduationCap, Code2, Zap, ArrowRight } from 'lucide-react';
+
 
 function SkillStars({ level }) {
   return (
@@ -27,6 +28,7 @@ export default function ProfilePage() {
   const [repos, setRepos] = useState([]);
   const [loading, setLoading] = useState(true);
   const isMe = !id || id === 'me';
+
 
   useEffect(() => {
     const load = async () => {
@@ -135,11 +137,18 @@ export default function ProfilePage() {
                 </a>
               )}
             </div>
-            {isMe && isAuthenticated && (
+            {isMe && isAuthenticated ? (
               <Link to="/edit-profile"
                 className="btn-ghost w-full flex items-center justify-center gap-2 mt-5 text-sm py-2">
                 <Edit2 size={13} /> Edit Profile
               </Link>
+            ) : isAuthenticated && (
+              <button
+                onClick={() => navigate(`/messages/${profileUser._id}`)}
+                className="btn-primary w-full flex items-center justify-center gap-2 mt-5 text-sm py-2"
+              >
+                <MessageSquare size={13} /> Message
+              </button>
             )}
           </motion.div>
 

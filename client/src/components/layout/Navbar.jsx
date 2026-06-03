@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
-import { Code2, Menu, X, Zap, Users, HelpCircle, Layers, Compass } from 'lucide-react';
+import { Code2, Menu, X, Zap, Users, HelpCircle, Layers, Compass, MessageSquare } from 'lucide-react';
+import api from '../../utils/api';
 
 const navLinks = [
-  { to: '/dashboard', label: 'Dashboard', icon: Zap },
-  { to: '/explore', label: 'Explore', icon: Compass },
-  { to: '/projects', label: 'Projects', icon: Layers },
-  { to: '/doubts', label: 'Doubts', icon: HelpCircle },
-  { to: '/rooms', label: 'Rooms', icon: Users },
+  { to: '/dashboard',  label: 'Dashboard', icon: Zap },
+  { to: '/explore',    label: 'Explore',   icon: Compass },
+  { to: '/projects',   label: 'Projects',  icon: Layers },
+  { to: '/doubts',     label: 'Doubts',    icon: HelpCircle },
+  { to: '/rooms',      label: 'Rooms',     icon: Users },
+  { to: '/messages',   label: 'Messages',  icon: MessageSquare },
 ];
 
 export default function Navbar() {
@@ -17,6 +19,24 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+
+  // Poll unread count every 30s
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const fetch = () =>
+      api.get('/api/messages/unread/count')
+        .then(r => setUnread(r.data.count || 0))
+        .catch(() => {});
+    fetch();
+    const id = setInterval(fetch, 30000);
+    return () => clearInterval(id);
+  }, [isAuthenticated]);
+
+  // Clear badge when on messages page
+  useEffect(() => {
+    if (location.pathname.startsWith('/messages')) setUnread(0);
+  }, [location.pathname]);
 
   const handleLogout = () => { logout(); navigate('/'); };
   const logoTo = isAuthenticated ? '/dashboard' : '/';
@@ -42,16 +62,26 @@ export default function Navbar() {
         {/* Desktop links */}
         {isAuthenticated && (
           <div className="hidden md:flex items-center gap-1">
-            {navLinks.map(({ to, label, icon: Icon }) => (
-              <Link key={to} to={to}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-body font-medium transition-all duration-200
-                  ${location.pathname === to
-                    ? 'bg-purple/20 text-purple-light border border-purple/30'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <Icon size={14} />
-                {label}
-              </Link>
-            ))}
+            {navLinks.map(({ to, label, icon: Icon }) => {
+              const isActive = location.pathname === to || location.pathname.startsWith(to + '/');
+              const showBadge = to === '/messages' && unread > 0;
+              return (
+                <Link key={to} to={to}
+                  className={`relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-body font-medium transition-all duration-200
+                    ${isActive
+                      ? 'bg-purple/20 text-purple-light border border-purple/30'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                  <Icon size={14} />
+                  {label}
+                  {showBadge && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-mono flex items-center justify-center text-white"
+                      style={{ background: 'linear-gradient(135deg,#a855f7,#f472b6)' }}>
+                      {unread > 9 ? '9+' : unread}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
           </div>
         )}
 
@@ -90,12 +120,21 @@ export default function Navbar() {
             className="glass-dark mt-2 max-w-7xl mx-auto p-4 flex flex-col gap-2"
             style={{ borderRadius: '16px' }}
           >
-            {isAuthenticated && navLinks.map(({ to, label, icon: Icon }) => (
-              <Link key={to} to={to} onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-body hover:bg-white/5 transition-all text-gray-300 hover:text-white">
-                <Icon size={16} />{label}
-              </Link>
-            ))}
+            {isAuthenticated && navLinks.map(({ to, label, icon: Icon }) => {
+              const showBadge = to === '/messages' && unread > 0;
+              return (
+                <Link key={to} to={to} onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-between px-4 py-3 rounded-xl text-sm font-body hover:bg-white/5 transition-all text-gray-300 hover:text-white">
+                  <span className="flex items-center gap-2"><Icon size={16} />{label}</span>
+                  {showBadge && (
+                    <span className="w-5 h-5 rounded-full text-[10px] font-mono flex items-center justify-center text-white"
+                      style={{ background: 'linear-gradient(135deg,#a855f7,#f472b6)' }}>
+                      {unread > 9 ? '9+' : unread}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
             {isAuthenticated ? (
               <button onClick={() => { handleLogout(); setMenuOpen(false); }}
                 className="btn-ghost w-full mt-2">Logout</button>

@@ -19,18 +19,19 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Define Routes
-app.use('/api/users',   require('./routes/api/users'));
-app.use('/api/auth',    require('./routes/api/auth'));
-app.use('/api/profile', require('./routes/api/profile'));
-app.use('/api/posts',   require('./routes/api/posts'));
-app.use('/api/projects',require('./routes/api/projects'));
-app.use('/api/doubts',  require('./routes/api/doubts'));
-app.use('/api/rooms',   require('./routes/api/rooms'));
-app.use('/api/github',  require('./routes/api/github'));
+app.use('/api/users',    require('./routes/api/users'));
+app.use('/api/auth',     require('./routes/api/auth'));
+app.use('/api/profile',  require('./routes/api/profile'));
+app.use('/api/posts',    require('./routes/api/posts'));
+app.use('/api/projects', require('./routes/api/projects'));
+app.use('/api/doubts',   require('./routes/api/doubts'));
+app.use('/api/rooms',    require('./routes/api/rooms'));
+app.use('/api/github',   require('./routes/api/github'));
+app.use('/api/messages', require('./routes/api/messages'));   // ← NEW
 
 app.get('/', (req, res) => res.json({ message: '🚀 DevForge API Running' }));
 
-// Socket.IO for Build Together Rooms
+// ─── Socket.IO — Build Together Rooms (existing) ────────────────────────────
 const roomChats = {};
 
 io.on('connection', (socket) => {
@@ -52,6 +53,45 @@ io.on('connection', (socket) => {
 
   socket.on('task_update', ({ roomId, tasks }) => {
     socket.to(roomId).emit('tasks_updated', tasks);
+  });
+
+  // ─── Direct Messages ───────────────────────────────────────────────────────
+  // Each authenticated user joins a personal room keyed by their userId,
+  // so we can push messages to them regardless of which conversation they have open.
+  socket.on('dm_join', ({ userId }) => {
+    if (userId) socket.join(`dm_${userId}`);
+  });
+
+  socket.on('dm_send', async ({ senderId, senderName, senderAvatar, receiverId, text }) => {
+    if (!text?.trim()) return;
+
+    try {
+      const Message = require('./models/Message');
+      const { makeConvId } = require('./routes/api/messages');
+      const msg = await new Message({
+        conversationId: makeConvId(senderId, receiverId),
+        sender: senderId,
+        receiver: receiverId,
+        text: text.trim()
+      }).save();
+
+      const payload = {
+        _id: msg._id,
+        conversationId: msg.conversationId,
+        sender: senderId,
+        receiver: receiverId,
+        senderName,
+        senderAvatar,
+        text: msg.text,
+        createdAt: msg.createdAt
+      };
+
+      // Push to both participants
+      io.to(`dm_${receiverId}`).emit('dm_receive', payload);
+      io.to(`dm_${senderId}`).emit('dm_receive', payload);
+    } catch (err) {
+      console.error('DM send error:', err);
+    }
   });
 
   socket.on('disconnect', () => {
