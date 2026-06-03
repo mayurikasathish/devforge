@@ -22,10 +22,6 @@ function SkillStars({ level }) {
   );
 }
 
-<<<<<<< HEAD
-const calculateMatch = (mySkills = [], otherSkills = []) => {
-  if (!mySkills.length || !otherSkills.length) return 0;
-=======
 const calculateMatch = (
   mySkills = [],
   otherSkills = [],
@@ -33,7 +29,6 @@ const calculateMatch = (
 ) => {
   if (!mySkills.length || !otherSkills.length)
     return 0;
->>>>>>> 0c7c3b3 (added color to matched people based on % and added the feature to explore page)
 
   const mySkillNames = mySkills.map(s =>
     s.name?.toLowerCase().trim()
@@ -47,11 +42,6 @@ const calculateMatch = (
     otherSkillNames.includes(skill)
   );
 
-<<<<<<< HEAD
-  return Math.round(
-    (common.length / mySkillNames.length) * 100
-  );
-=======
   const uniqueSkills = new Set([
     ...mySkillNames,
     ...otherSkillNames
@@ -68,7 +58,6 @@ const calculateMatch = (
     score += 3;
 
   return Math.min(100, Math.round(score));
->>>>>>> 0c7c3b3 (added color to matched people based on % and added the feature to explore page)
 };
 
 function ProjectModal({ project, onClose, onApply, currentUserId }) {
