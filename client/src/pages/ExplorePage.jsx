@@ -161,46 +161,6 @@ export default function ExplorePage() {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
   const [loading, setLoading] = useState(true);
-<<<<<<< HEAD
-  const myProfile = profiles.find(
-  p => p.user._id === user?.id ||
-       p.user._id === user?._id
-);
-
-const userProfileSkills = myProfile?.skills || [];
-  const calculateMatch = (mySkills = [], otherSkills = []) => {
-  if (!mySkills.length) return 0;
-
-  const common = mySkills.filter(mySkill =>
-    otherSkills.some(
-      otherSkill =>
-        otherSkill.name.toLowerCase() ===
-        mySkill.name.toLowerCase()
-    )
-  );
-
-  return Math.round(
-    (common.length / mySkills.length) * 100
-  );
-};
-
-  useEffect(() => {
-    api.get('/api/profile').then(res => {
-  console.log("API DATA:", res.data);
-  res.data.forEach(p => {
-  console.log(
-    "PROFILE:",
-    p.user?.name,
-    p.user?._id,
-    p.skills
-  );
-});
-
-  setProfiles(res.data);
-  setFiltered(res.data);
-}).catch(() => {}).finally(() => setLoading(false));
-  }, [user]);
-=======
   const [myProfile, setMyProfile] = useState(null);
 
 useEffect(() => {
@@ -223,7 +183,6 @@ useEffect(() => {
     .finally(() => setLoading(false));
 
 }, [user]);
->>>>>>> 0c7c3b3 (added color to matched people based on % and added the feature to explore page)
 
   useEffect(() => {
     let result = profiles;
