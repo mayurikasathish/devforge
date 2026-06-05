@@ -15,6 +15,10 @@ const ProfileSchema = new mongoose.Schema({
     enum: ['available', 'busy', 'open_to_collaborate'],
     default: 'available'
   },
+  // ── Follow system ──────────────────────────────────────────────────────────
+  followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'user' }],
+  following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'user' }],
+  // ─────────────────────────────────────────────────────────────────────────
   experience: [{
     title: { type: String, required: true },
     company: { type: String, required: true },

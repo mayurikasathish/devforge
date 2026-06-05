@@ -314,4 +314,66 @@ router.get('/leetcode/:username', async (req, res) => {
     res.status(500).json({ msg: 'Failed to fetch LeetCode stats' });
   }
 });
+
+// ─── PUT /api/profile/follow/:userId ─────────────────────────────────────────
+// Toggle follow/unfollow. Returns { following: bool, followerCount: number }
+router.put('/follow/:userId', auth, async (req, res) => {
+  try {
+    const targetUserId = req.params.userId;
+    const myUserId     = req.user.id;
+
+    if (targetUserId === myUserId)
+      return res.status(400).json({ msg: "You can't follow yourself" });
+
+    // My profile — update following list
+    const myProfile = await Profile.findOne({ user: myUserId });
+    if (!myProfile) return res.status(400).json({ msg: 'Complete your profile first' });
+
+    // Target's profile — update followers list
+    const targetProfile = await Profile.findOne({ user: targetUserId });
+    if (!targetProfile) return res.status(404).json({ msg: 'Profile not found' });
+
+    const alreadyFollowing = myProfile.following.map(id => id.toString()).includes(targetUserId);
+
+    if (alreadyFollowing) {
+      // Unfollow
+      myProfile.following     = myProfile.following.filter(id => id.toString() !== targetUserId);
+      targetProfile.followers = targetProfile.followers.filter(id => id.toString() !== myUserId);
+    } else {
+      // Follow
+      myProfile.following.push(targetUserId);
+      targetProfile.followers.push(myUserId);
+
+      // Notify the target user via socket
+      try {
+        const User = require('../../models/User');
+        const me   = await User.findById(myUserId).select('name');
+        req.app.get('io').to(`dm_${targetUserId}`).emit('notification', {
+          type: 'new_follower',
+          message: `${me.name} started following you`,
+        });
+      } catch (_) {}
+    }
+
+    await myProfile.save();
+    await targetProfile.save();
+
+    res.json({ following: !alreadyFollowing, followerCount: targetProfile.followers.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
+  }
+});
+
+// ─── GET /api/profile/following/ids ──────────────────────────────────────────
+// Returns array of user IDs that the current user follows
+router.get('/following/ids', auth, async (req, res) => {
+  try {
+    const profile = await Profile.findOne({ user: req.user.id }).select('following');
+    res.json(profile?.following || []);
+  } catch (err) {
+    res.status(500).send('Server error');
+  }
+});
+
 module.exports = router;

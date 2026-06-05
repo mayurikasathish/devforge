@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { Search, Star, MapPin, Github } from 'lucide-react';
+import FollowButton from '../components/ui/FollowButton';
 
 const SKILL_FILTERS = ['React','Node.js','Python','Java','TypeScript','MongoDB','Next.js','Docker','AWS','DSA','ML','C++'];
 
@@ -47,9 +48,11 @@ const calculateMatch = (
 
 function DevCard({
   profile,
-  mySkills = []
+  mySkills = [],
+  followingIds = []
 }) {
   const { user, status, skills, location, githubusername, availability } = profile;
+  const isFollowing = followingIds.includes(user?._id?.toString());
   const matchPercentage = calculateMatch(
   mySkills,
   skills || [],
@@ -142,6 +145,10 @@ const commonCount = commonSkills.length;
             <Github size={11} />{githubusername}
           </div>
         )}
+        {/* Follow button — stops propagation so it doesn't navigate to profile */}
+        <div onClick={e => e.preventDefault()}>
+          <FollowButton targetUserId={user?._id} initialFollowing={isFollowing} size="sm" />
+        </div>
       </Link>
     </motion.div>
   );
@@ -155,11 +162,16 @@ export default function ExplorePage() {
   const [activeFilter, setActiveFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [myProfile, setMyProfile] = useState(null);
+  const [followingIds, setFollowingIds] = useState([]);
 
 useEffect(() => {
 
   api.get('/api/profile/me')
     .then(res => setMyProfile(res.data))
+    .catch(() => {});
+
+  api.get('/api/profile/following/ids')
+    .then(res => setFollowingIds(res.data.map(id => id.toString())))
     .catch(() => {});
 
   api.get('/api/profile')

@@ -17,6 +17,19 @@ function formatTime(iso) {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
+// WhatsApp-style: "10:45 AM · Mon, 3 Jun"
+function formatBubbleTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const now = new Date();
+  const diffDays = Math.floor((now - d) / 86400000);
+  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (diffDays === 0) return time;
+  if (diffDays === 1) return `${time} · Yesterday`;
+  if (diffDays < 7)   return `${time} · ${d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}`;
+  return `${time} · ${d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}`;
+}
+
 function formatDateDivider(iso) {
   const d = new Date(iso);
   const now = new Date();
@@ -120,8 +133,8 @@ function Bubble({ msg, isMine, showAvatar, peerAvatar, peerName }) {
             : { background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.06)' }}>
           {msg.text}
         </div>
-        <span className="text-[10px] text-gray-600 font-mono px-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {formatTime(msg.createdAt)}
+        <span className="text-[10px] text-gray-500 font-mono px-1">
+          {formatBubbleTime(msg.createdAt)}
         </span>
       </div>
     </div>

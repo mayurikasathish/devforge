@@ -1,15 +1,18 @@
 const express = require('express');
-const router = express.Router();
-const auth = require('../../middleware/auth');
+const router  = express.Router();
+const auth    = require('../../middleware/auth');
 const { check, validationResult } = require('express-validator');
-const Doubt = require('../../models/Doubt');
+const Doubt    = require('../../models/Doubt');
+const Activity = require('../../models/Activity');
 
-// @route  POST api/doubts
-// @desc   Post a doubt (optionally anonymous)
-// @access Private
+function emitActivity(req, payload) {
+  try { req.app.get('io').emit('activity', payload); } catch (_) {}
+}
+
+// ─── POST /api/doubts ─────────────────────────────────────────────────────────
 router.post('/', [auth, [
   check('title', 'Title is required').not().isEmpty(),
-  check('body', 'Body is required').not().isEmpty()
+  check('body',  'Body is required').not().isEmpty()
 ]], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
@@ -20,6 +23,24 @@ router.post('/', [auth, [
       tags: tags || [], anonymous: anonymous !== false
     });
     await doubt.save();
+
+    // Always broadcast to feed, but mask identity if anonymous
+    const User = require('../../models/User');
+    const actor = await User.findById(req.user.id).select('name avatar');
+    const act = await Activity.create({
+      type: 'doubt_posted',
+      actor: req.user.id,
+      meta: { doubtId: doubt._id.toString(), doubtTitle: title }
+    });
+    emitActivity(req, {
+      _id: act._id, type: 'doubt_posted',
+      // If anonymous, show masked identity in feed — real actor still stored in DB for filtering
+      actor: anonymous
+        ? { _id: req.user.id, name: 'Anonymous', avatar: null }
+        : { _id: req.user.id, name: actor.name, avatar: actor.avatar },
+      meta: act.meta, createdAt: act.createdAt
+    });
+
     res.json(doubt);
   } catch (err) {
     console.error(err.message);
@@ -27,9 +48,7 @@ router.post('/', [auth, [
   }
 });
 
-// @route  GET api/doubts
-// @desc   Get all doubts (with optional tag filter)
-// @access Public
+// ─── GET /api/doubts ──────────────────────────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
     const filter = {};
@@ -39,21 +58,17 @@ router.get('/', async (req, res) => {
       .sort({ date: -1 });
     const masked = doubts.map(d => {
       const obj = d.toObject();
-      // Always expose _ownerId so frontend can identify own posts regardless of anonymity
       obj._ownerId = obj.user?._id?.toString();
-      if (obj.anonymous) { obj.user = { name: 'Anonymous', avatar: null }; }
+      if (obj.anonymous) obj.user = { name: 'Anonymous', avatar: null };
       return obj;
     });
     res.json(masked);
   } catch (err) {
-    console.error(err.message);
     res.status(500).send('Server error');
   }
 });
 
-// @route  GET api/doubts/:id
-// @desc   Get doubt by ID
-// @access Public
+// ─── GET /api/doubts/:id ──────────────────────────────────────────────────────
 router.get('/:id', async (req, res) => {
   try {
     const doubt = await Doubt.findByIdAndUpdate(
@@ -69,14 +84,11 @@ router.get('/:id', async (req, res) => {
     });
     res.json(obj);
   } catch (err) {
-    console.error(err.message);
     res.status(500).send('Server error');
   }
 });
 
-// @route  POST api/doubts/answer/:id
-// @desc   Answer a doubt
-// @access Private
+// ─── POST /api/doubts/answer/:id ─────────────────────────────────────────────
 router.post('/answer/:id', [auth, [
   check('text', 'Text is required').not().isEmpty()
 ]], async (req, res) => {
@@ -85,19 +97,15 @@ router.post('/answer/:id', [auth, [
   try {
     const doubt = await Doubt.findById(req.params.id);
     if (!doubt) return res.status(404).json({ msg: 'Doubt not found' });
-    const answer = { user: req.user.id, text: req.body.text, anonymous: req.body.anonymous || false };
-    doubt.answers.unshift(answer);
+    doubt.answers.unshift({ user: req.user.id, text: req.body.text, anonymous: req.body.anonymous || false });
     await doubt.save();
     res.json(doubt.answers);
   } catch (err) {
-    console.error(err.message);
     res.status(500).send('Server error');
   }
 });
 
-// @route  PUT api/doubts/upvote/:id
-// @desc   Upvote a doubt
-// @access Private
+// ─── PUT /api/doubts/upvote/:id ───────────────────────────────────────────────
 router.put('/upvote/:id', auth, async (req, res) => {
   try {
     const doubt = await Doubt.findById(req.params.id);
@@ -109,25 +117,20 @@ router.put('/upvote/:id', auth, async (req, res) => {
     await doubt.save();
     res.json(doubt.upvotes);
   } catch (err) {
-    console.error(err.message);
     res.status(500).send('Server error');
   }
 });
 
-// @route  DELETE api/doubts/:id
-// @desc   Delete a doubt
-// @access Private
+// ─── DELETE /api/doubts/:id ───────────────────────────────────────────────────
 router.delete('/:id', auth, async (req, res) => {
   try {
     const doubt = await Doubt.findById(req.params.id);
     if (!doubt) return res.status(404).json({ msg: 'Doubt not found' });
-    if (doubt.user.toString() !== req.user.id) {
+    if (doubt.user.toString() !== req.user.id)
       return res.status(401).json({ msg: 'Not authorized' });
-    }
     await doubt.deleteOne();
     res.json({ msg: 'Doubt removed' });
   } catch (err) {
-    console.error(err.message);
     res.status(500).send('Server error');
   }
 });

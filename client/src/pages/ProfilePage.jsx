@@ -4,8 +4,8 @@ import { motion } from 'framer-motion';
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer } from 'recharts';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import { Star, Github, ExternalLink, MessageSquare, Twitter, Linkedin, MapPin, Globe, Edit2, Briefcase, GraduationCap, Code2, Zap, ArrowRight } from 'lucide-react';
-
+import { Star, Github, ExternalLink, Twitter, Linkedin, MapPin, Globe, Edit2, Briefcase, GraduationCap, Code2, Zap, ArrowRight, MessageSquare, Users } from 'lucide-react';
+import FollowButton from '../components/ui/FollowButton';
 
 function SkillStars({ level }) {
   return (
@@ -27,8 +27,8 @@ export default function ProfilePage() {
   const [leetcode, setLeetcode] = useState(null);
   const [repos, setRepos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(false);
   const isMe = !id || id === 'me';
-
 
   useEffect(() => {
     const load = async () => {
@@ -38,6 +38,11 @@ export default function ProfilePage() {
           : await api.get(`/api/profile/user/${id}`);
         const data = profileRes.data;
         setProfile(data);
+        // Check if current user follows this profile
+        if (!isMe && user) {
+          const myId = user?.id || user?._id;
+          setIsFollowing((data.followers || []).some(f => f?.toString() === myId?.toString()));
+        }
         if (data.leetcodeusername) {
           api.get(`/api/profile/leetcode/${data.leetcodeusername}`)
             .then(r => setLeetcode(r.data))
@@ -143,12 +148,28 @@ export default function ProfilePage() {
                 <Edit2 size={13} /> Edit Profile
               </Link>
             ) : isAuthenticated && (
-              <button
-                onClick={() => navigate(`/messages/${profileUser._id}`)}
-                className="btn-primary w-full flex items-center justify-center gap-2 mt-5 text-sm py-2"
-              >
-                <MessageSquare size={13} /> Message
-              </button>
+              <div className="flex flex-col gap-2 mt-5">
+                <button
+                  onClick={() => navigate(`/messages/${profileUser?._id}`)}
+                  className="btn-primary w-full flex items-center justify-center gap-2 text-sm py-2">
+                  <MessageSquare size={13} /> Message
+                </button>
+                <div className="flex justify-center">
+                  <FollowButton
+                    targetUserId={profileUser?._id}
+                    initialFollowing={isFollowing}
+                    onToggle={setIsFollowing}
+                    size="md"
+                  />
+                </div>
+                {/* Follower count */}
+                <div className="flex items-center justify-center gap-1 mt-1">
+                  <Users size={11} className="text-gray-600" />
+                  <span className="text-[11px] font-mono text-gray-500">
+                    {(profile?.followers?.length || 0)} follower{profile?.followers?.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              </div>
             )}
           </motion.div>
 

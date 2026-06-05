@@ -3,49 +3,54 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { Plus, X, Layers, Users, Clock, Zap, Search, Trash2, Edit2 } from 'lucide-react';
+import { Plus, X, Layers, Users, Clock, Search, Trash2, Edit2, CheckCircle2 } from 'lucide-react';
 import ConfirmModal from '../components/ui/ConfirmModal';
+import ApplyModal   from '../components/ui/ApplyModal';
 
 const TECH_OPTIONS = ['React','Node.js','Python','MongoDB','PostgreSQL','TypeScript','Next.js','GraphQL','Docker','AWS','Flutter','Django','FastAPI','Redis','Prisma'];
 
 const STATUS_STYLES = {
-  open: { bg: 'rgba(45,212,191,0.1)', border: '1px solid rgba(45,212,191,0.25)', color: '#5eead4', label: 'Open' },
-  in_progress: { bg: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.25)', color: '#c084fc', label: 'In Progress' },
-  completed: { bg: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)', color: '#4ade80', label: 'Completed' },
+  open:        { bg: 'rgba(45,212,191,0.1)',  border: '1px solid rgba(45,212,191,0.25)',  color: '#5eead4', label: 'Open' },
+  in_progress: { bg: 'rgba(168,85,247,0.1)',  border: '1px solid rgba(168,85,247,0.25)', color: '#c084fc', label: 'In Progress' },
+  completed:   { bg: 'rgba(74,222,128,0.1)',  border: '1px solid rgba(74,222,128,0.25)', color: '#4ade80', label: 'Completed' },
 };
 
+// FIX: normalise both sides to string for reliable comparison
+function userIdStr(id) {
+  return (id?._id || id)?.toString() || '';
+}
+
 function ProjectCard({ project, onApply, onDelete, onEdit, onStatusUpdate, currentUserId }) {
-  const hasApplied = project.applicants?.some(a => (a._id || a) === currentUserId);
-  const isOwner = project.user?._id === currentUserId || project.user === currentUserId;
-  const statusStyle = STATUS_STYLES[project.status] || STATUS_STYLES.open;
+  const hasApplied = project.applicants?.some(a => userIdStr(a) === currentUserId);
+  const isOwner    = userIdStr(project.user) === currentUserId;
+  const style      = STATUS_STYLES[project.status] || STATUS_STYLES.open;
 
   return (
     <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       className="glass-dark p-5 card-hover flex flex-col gap-3">
+
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <h3 className="font-display font-semibold text-white text-base truncate">{project.title}</h3>
           <div className="flex items-center gap-2 mt-1">
-            <img src={project.user?.avatar} alt="" className="w-4 h-4 rounded-full" />
+            {project.user?.avatar && <img src={project.user.avatar} alt="" className="w-4 h-4 rounded-full" />}
             <span className="text-xs text-gray-500 font-body">{project.user?.name}</span>
           </div>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <span className="text-[10px] px-2 py-0.5 rounded-lg whitespace-nowrap font-mono"
-            style={{ background: statusStyle.bg, border: statusStyle.border, color: statusStyle.color }}>
-            {statusStyle.label}
+            style={{ background: style.bg, border: style.border, color: style.color }}>
+            {style.label}
           </span>
           {isOwner && (
             <>
               <button onClick={() => onEdit(project)}
-                className="p-1.5 rounded-lg text-gray-600 hover:text-purple-light hover:bg-purple/10 transition-all"
-                title="Edit project">
+                className="p-1.5 rounded-lg text-gray-600 hover:text-purple-light hover:bg-purple/10 transition-all">
                 <Edit2 size={13} />
               </button>
               <button onClick={() => onDelete(project._id)}
-                className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-all"
-                title="Delete project">
+                className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-all">
                 <Trash2 size={13} />
               </button>
             </>
@@ -64,7 +69,7 @@ function ProjectCard({ project, onApply, onDelete, onEdit, onStatusUpdate, curre
       {project.rolesNeeded?.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {project.rolesNeeded.map(r => (
-            <span key={r} className="tag-pink text-[10px] px-2 py-0.5 rounded-lg font-mono"
+            <span key={r} className="text-[10px] px-2 py-0.5 rounded-lg font-mono"
               style={{ background: 'rgba(244,114,182,0.1)', border: '1px solid rgba(244,114,182,0.25)', color: '#f9a8d4' }}>
               🔍 {r}
             </span>
@@ -77,21 +82,23 @@ function ProjectCard({ project, onApply, onDelete, onEdit, onStatusUpdate, curre
           <span className="flex items-center gap-1"><Users size={11} /> {project.applicants?.length || 0} applicants</span>
           {project.duration && <span className="flex items-center gap-1"><Clock size={11} /> {project.duration}</span>}
         </div>
+
         {isOwner ? (
-          <select
-            value={project.status}
-            onChange={e => onStatusUpdate(project._id, e.target.value)}
+          <select value={project.status} onChange={e => onStatusUpdate(project._id, e.target.value)}
             className="text-xs font-mono bg-transparent border border-purple/30 text-purple-light rounded-lg px-2 py-1 cursor-pointer outline-none">
             <option value="open">Open</option>
             <option value="in_progress">In Progress</option>
             <option value="completed">Completed</option>
           </select>
+        ) : hasApplied ? (
+          <span className="flex items-center gap-1.5 text-xs font-body text-green-400 px-3 py-1.5 rounded-xl"
+            style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)' }}>
+            <CheckCircle2 size={12} /> Applied
+          </span>
         ) : (
-          <button onClick={() => onApply(project._id)} disabled={hasApplied}
-            className={`text-xs px-4 py-1.5 rounded-xl font-body font-medium transition-all ${hasApplied
-              ? 'bg-white/5 text-gray-500 cursor-not-allowed border border-white/10'
-              : 'btn-primary py-1.5 px-4 text-xs'}`}>
-            {hasApplied ? 'Applied ✓' : 'Apply'}
+          <button onClick={() => onApply(project)}
+            className="btn-primary text-xs py-1.5 px-4">
+            Apply
           </button>
         )}
       </div>
@@ -103,17 +110,20 @@ const emptyForm = { title: '', description: '', techStack: [], rolesNeeded: [], 
 
 export default function ProjectsPage() {
   const { user } = useAuth();
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [projects, setProjects]         = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [showForm, setShowForm]         = useState(false);
   const [editingProject, setEditingProject] = useState(null);
-  const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState('others');
-  const [form, setForm] = useState(emptyForm);
-  const [techInput, setTechInput] = useState('');
-  const [roleInput, setRoleInput] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [search, setSearch]             = useState('');
+  const [activeTab, setActiveTab]       = useState('others');
+  const [form, setForm]                 = useState(emptyForm);
+  const [techInput, setTechInput]       = useState('');
+  const [roleInput, setRoleInput]       = useState('');
+  const [submitting, setSubmitting]     = useState(false);
   const [confirmModal, setConfirmModal] = useState({ open: false, id: null });
+  const [applyModal, setApplyModal]     = useState({ open: false, project: null });
+
+  const currentUserId = user?.id || user?._id || '';
 
   useEffect(() => {
     api.get('/api/projects')
@@ -122,16 +132,27 @@ export default function ProjectsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleApply = async (id) => {
+  // ── Apply — opens confirmation modal first ────────────────────────────────
+  const handleApply = (project) => {
+    setApplyModal({ open: true, project });
+  };
+
+  const confirmApply = async () => {
+    const project = applyModal.project;
+    setApplyModal({ open: false, project: null });
     try {
-      await api.put(`/api/projects/apply/${id}`);
-      setProjects(projects.map(p => p._id === id
-        ? { ...p, applicants: [...(p.applicants || []), { _id: user?.id }] } : p));
-      toast.success('Application sent!');
+      await api.put(`/api/projects/apply/${project._id}`);
+      setProjects(prev => prev.map(p =>
+        p._id === project._id
+          ? { ...p, applicants: [...(p.applicants || []), currentUserId] }
+          : p
+      ));
+      toast.success('Application sent! The project owner has been notified.', { duration: 4000 });
     } catch (err) {
       const msg = err.response?.data?.msg;
       if (msg === 'Already applied') toast.error('You already applied to this project');
-      else toast.error('Could not apply');
+      else if (msg === 'You cannot apply to your own project') toast.error("That's your own project!");
+      else toast.error('Could not send application');
     }
   };
 
@@ -140,7 +161,7 @@ export default function ProjectsPage() {
   const confirmDelete = async () => {
     try {
       await api.delete(`/api/projects/${confirmModal.id}`);
-      setProjects(projects.filter(p => p._id !== confirmModal.id));
+      setProjects(prev => prev.filter(p => p._id !== confirmModal.id));
       toast.success('Project deleted');
     } catch { toast.error('Could not delete'); }
     finally { setConfirmModal({ open: false, id: null }); }
@@ -149,12 +170,9 @@ export default function ProjectsPage() {
   const handleEdit = (project) => {
     setEditingProject(project);
     setForm({
-      title: project.title,
-      description: project.description,
-      techStack: project.techStack || [],
-      rolesNeeded: project.rolesNeeded || [],
-      duration: project.duration || '',
-      status: project.status || 'open',
+      title: project.title, description: project.description,
+      techStack: project.techStack || [], rolesNeeded: project.rolesNeeded || [],
+      duration: project.duration || '', status: project.status || 'open',
     });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -163,7 +181,7 @@ export default function ProjectsPage() {
   const handleStatusUpdate = async (id, status) => {
     try {
       await api.put(`/api/projects/status/${id}`, { status });
-      setProjects(projects.map(p => p._id === id ? { ...p, status } : p));
+      setProjects(prev => prev.map(p => p._id === id ? { ...p, status } : p));
       toast.success('Status updated');
     } catch { toast.error('Could not update status'); }
   };
@@ -173,63 +191,60 @@ export default function ProjectsPage() {
     setSubmitting(true);
     try {
       if (editingProject) {
-        const res = await api.put(`/api/projects/${editingProject._id}`, form);
-        setProjects(projects.map(p => p._id === editingProject._id ? { ...p, ...form } : p));
+        await api.put(`/api/projects/${editingProject._id}`, form);
+        setProjects(prev => prev.map(p => p._id === editingProject._id ? { ...p, ...form } : p));
         toast.success('Project updated!');
       } else {
         const res = await api.post('/api/projects', form);
-        setProjects([res.data, ...projects]);
+        setProjects(prev => [res.data, ...prev]);
         toast.success('Project posted!');
       }
-      setShowForm(false);
-      setEditingProject(null);
-      setForm(emptyForm);
+      setShowForm(false); setEditingProject(null); setForm(emptyForm);
     } catch { toast.error(editingProject ? 'Failed to update' : 'Failed to post project'); }
     finally { setSubmitting(false); }
   };
 
-  const cancelForm = () => {
-    setShowForm(false);
-    setEditingProject(null);
-    setForm(emptyForm);
-  };
-
+  const cancelForm = () => { setShowForm(false); setEditingProject(null); setForm(emptyForm); };
   const addTech = t => { if (t && !form.techStack.includes(t)) setForm({ ...form, techStack: [...form.techStack, t] }); setTechInput(''); };
   const addRole = r => { if (r && !form.rolesNeeded.includes(r)) setForm({ ...form, rolesNeeded: [...form.rolesNeeded, r] }); setRoleInput(''); };
 
-  const myProjects = projects.filter(p => p.user?._id === user?.id || p.user === user?.id);
-  const othersProjects = projects.filter(p => p.user?._id !== user?.id && p.user !== user?.id);
-
-  const filterProjects = (list) => list.filter(p =>
-    !search || p.title.toLowerCase().includes(search.toLowerCase()) ||
+  const myProjects     = projects.filter(p => userIdStr(p.user) === currentUserId.toString());
+  const othersProjects = projects.filter(p => userIdStr(p.user) !== currentUserId.toString());
+  const filterProjects = list => list.filter(p =>
+    !search ||
+    p.title.toLowerCase().includes(search.toLowerCase()) ||
     p.techStack?.some(t => t.toLowerCase().includes(search.toLowerCase())) ||
     p.rolesNeeded?.some(r => r.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (
     <div className="max-w-7xl mx-auto px-6 pt-28 pb-16">
-      <ConfirmModal
-        isOpen={confirmModal.open}
-        title="Delete Project"
-        message="This will permanently delete your project and all applications. This cannot be undone."
-        onConfirm={confirmDelete}
-        onCancel={() => setConfirmModal({ open: false, id: null })}
-      />
+      {/* Apply confirmation modal */}
+      {applyModal.open && (
+        <ApplyModal project={applyModal.project} onConfirm={confirmApply}
+          onCancel={() => setApplyModal({ open: false, project: null })} />
+      )}
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-start justify-between mb-8 flex-wrap gap-4">
+      <ConfirmModal isOpen={confirmModal.open} title="Delete Project"
+        message="This will permanently delete your project and all applications. This cannot be undone."
+        onConfirm={confirmDelete} onCancel={() => setConfirmModal({ open: false, id: null })} />
+
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+        className="flex items-start justify-between mb-8 flex-wrap gap-4">
         <div>
           <h1 className="font-display font-bold text-4xl text-white mb-1">
             Project <span className="gradient-text">Matchmaking</span>
           </h1>
           <p className="text-gray-400 font-body">Find collaborators or post your project</p>
         </div>
-        <button onClick={() => showForm && !editingProject ? cancelForm() : setShowForm(!showForm)} className="btn-primary flex items-center gap-2">
+        <button onClick={() => showForm && !editingProject ? cancelForm() : setShowForm(!showForm)}
+          className="btn-primary flex items-center gap-2">
           {showForm ? <X size={14} /> : <Plus size={14} />}
           {showForm ? 'Cancel' : 'Post Project'}
         </button>
       </motion.div>
 
-      {/* Post / Edit Form */}
+      {/* Form */}
       <AnimatePresence>
         {showForm && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
@@ -246,8 +261,10 @@ export default function ProjectsPage() {
                 </div>
                 <div className="sm:col-span-2">
                   <label className="text-xs font-mono text-gray-400 mb-1.5 block">Description *</label>
-                  <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value.slice(0, 800) })}
-                    className="input-glass resize-none w-full" rows={3} placeholder="What are you building? What's the goal?" required />
+                  <textarea value={form.description}
+                    onChange={e => setForm({ ...form, description: e.target.value.slice(0, 800) })}
+                    className="input-glass resize-none w-full" rows={3}
+                    placeholder="What are you building? What's the goal?" required />
                   <p className={`text-right text-xs font-mono mt-1 ${form.description.length > 750 ? 'text-red-400' : 'text-gray-600'}`}>
                     {form.description.length}/800
                   </p>
@@ -286,14 +303,14 @@ export default function ProjectsPage() {
                   </div>
                   {['Frontend Dev','Backend Dev','UI/UX Designer','ML Engineer','DevOps'].map(r => (
                     <button type="button" key={r} onClick={() => addRole(r)}
-                      className={`tag-pink text-[10px] mr-1 mb-1 cursor-pointer inline-block rounded-lg px-2 py-0.5 font-mono transition-all ${form.rolesNeeded.includes(r) ? 'opacity-50' : ''}`}
+                      className={`text-[10px] mr-1 mb-1 cursor-pointer inline-block rounded-lg px-2 py-0.5 font-mono transition-all ${form.rolesNeeded.includes(r) ? 'opacity-40' : ''}`}
                       style={{ background: 'rgba(244,114,182,0.1)', border: '1px solid rgba(244,114,182,0.25)', color: '#f9a8d4' }}>
                       {r}
                     </button>
                   ))}
                   <div className="flex gap-1 flex-wrap mt-2">
                     {form.rolesNeeded.map(r => (
-                      <span key={r} className="flex items-center gap-1 tag-pink text-[10px] px-2 py-0.5 rounded-lg font-mono"
+                      <span key={r} className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-lg font-mono"
                         style={{ background: 'rgba(244,114,182,0.15)', border: '1px solid rgba(244,114,182,0.3)', color: '#f9a8d4' }}>
                         {r}
                         <button type="button" onClick={() => setForm({ ...form, rolesNeeded: form.rolesNeeded.filter(x => x !== r) })}
@@ -319,7 +336,9 @@ export default function ProjectsPage() {
               </div>
               <div className="flex gap-3">
                 <button type="submit" disabled={submitting} className="btn-primary flex items-center gap-2">
-                  {submitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Layers size={14} />}
+                  {submitting
+                    ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    : <Layers size={14} />}
                   {editingProject ? 'Save Changes' : 'Post Project'}
                 </button>
                 <button type="button" onClick={cancelForm} className="btn-ghost">Cancel</button>
@@ -332,16 +351,10 @@ export default function ProjectsPage() {
       {/* Tabs + Search */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
         <div className="flex gap-1 p-1 glass-dark rounded-xl w-fit">
-          {[
-            { key: 'others', label: "All Projects" },
-            { key: 'mine', label: 'My Projects' },
-          ].map(tab => (
+          {[{ key: 'others', label: 'All Projects' }, { key: 'mine', label: 'My Projects' }].map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 rounded-lg text-sm font-body font-medium transition-all ${
-                activeTab === tab.key
-                  ? 'bg-purple/25 text-white border border-purple/40'
-                  : 'text-gray-500 hover:text-gray-300'
-              }`}>
+              className={`px-4 py-2 rounded-lg text-sm font-body font-medium transition-all
+                ${activeTab === tab.key ? 'bg-purple/25 text-white border border-purple/40' : 'text-gray-500 hover:text-gray-300'}`}>
               {tab.label}
               {tab.key === 'mine' && myProjects.length > 0 && (
                 <span className="ml-1.5 text-[10px] bg-purple/30 text-purple-light px-1.5 py-0.5 rounded font-mono">{myProjects.length}</span>
@@ -361,31 +374,27 @@ export default function ProjectsPage() {
           <div className="w-7 h-7 border-2 border-purple rounded-full border-t-transparent animate-spin" />
         </div>
       ) : activeTab === 'mine' ? (
-        myProjects.length === 0 ? (
-          <div className="text-center py-16 text-gray-500 font-body">You haven't posted any projects yet.</div>
-        ) : (
-          <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <AnimatePresence>
-              {filterProjects(myProjects).map(p => (
-                <ProjectCard key={p._id} project={p} onApply={handleApply} onDelete={handleDelete}
-                  onEdit={handleEdit} onStatusUpdate={handleStatusUpdate} currentUserId={user?.id} />
-              ))}
-            </AnimatePresence>
-          </motion.div>
-        )
+        myProjects.length === 0
+          ? <div className="text-center py-16 text-gray-500 font-body">You haven't posted any projects yet.</div>
+          : <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <AnimatePresence>
+                {filterProjects(myProjects).map(p => (
+                  <ProjectCard key={p._id} project={p} onApply={handleApply} onDelete={handleDelete}
+                    onEdit={handleEdit} onStatusUpdate={handleStatusUpdate} currentUserId={currentUserId} />
+                ))}
+              </AnimatePresence>
+            </motion.div>
       ) : (
-        othersProjects.length === 0 ? (
-          <div className="text-center py-16 text-gray-500 font-body">No projects yet. Be the first to post one!</div>
-        ) : (
-          <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <AnimatePresence>
-              {filterProjects(othersProjects).map(p => (
-                <ProjectCard key={p._id} project={p} onApply={handleApply} onDelete={handleDelete}
-                  onEdit={handleEdit} onStatusUpdate={handleStatusUpdate} currentUserId={user?.id} />
-              ))}
-            </AnimatePresence>
-          </motion.div>
-        )
+        othersProjects.length === 0
+          ? <div className="text-center py-16 text-gray-500 font-body">No projects yet. Be the first to post one!</div>
+          : <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <AnimatePresence>
+                {filterProjects(othersProjects).map(p => (
+                  <ProjectCard key={p._id} project={p} onApply={handleApply} onDelete={handleDelete}
+                    onEdit={handleEdit} onStatusUpdate={handleStatusUpdate} currentUserId={currentUserId} />
+                ))}
+              </AnimatePresence>
+            </motion.div>
       )}
     </div>
   );
