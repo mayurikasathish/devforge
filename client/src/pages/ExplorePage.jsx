@@ -277,6 +277,7 @@ setFiltered(result);
     key={p._id}
     profile={p}
     mySkills={myProfile?.skills || []}
+    followingIds={followingIds}
   />
 ))}
           </motion.div>

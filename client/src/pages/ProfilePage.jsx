@@ -41,7 +41,9 @@ export default function ProfilePage() {
         // Check if current user follows this profile
         if (!isMe && user) {
           const myId = user?.id || user?._id;
-          setIsFollowing((data.followers || []).some(f => f?.toString() === myId?.toString()));
+          const following = (data.followers || []).some(f => f?.toString() === myId?.toString());
+          console.log('[ProfilePage] My ID:', myId, 'Profile followers:', data.followers, 'Am I following?', following);
+          setIsFollowing(following);
         }
         if (data.leetcodeusername) {
           api.get(`/api/profile/leetcode/${data.leetcodeusername}`)

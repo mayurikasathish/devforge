@@ -7,7 +7,12 @@ const connectDB  = require('./config/db');
 const app    = express();
 const server = http.createServer(app);
 const io     = new Server(server, {
-  cors: { origin: process.env.CLIENT_URL || 'http://localhost:5173', methods: ['GET', 'POST'] }
+  cors: {
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    methods: ['GET', 'POST'],
+    credentials: true
+  },
+  transports: ['websocket', 'polling']
 });
 
 // Make io accessible inside route handlers via req.app.get('io')
@@ -33,25 +38,55 @@ app.use('/api/notifications',   require('./routes/api/notifications'));
 
 app.get('/', (req, res) => res.json({ message: '🚀 DevForge API Running' }));
 
-const roomChats = {};
+const roomChats    = {};
+const roomPresence = {};
 
 io.on('connection', (socket) => {
-  socket.on('join_room', ({ roomId, userName }) => {
+  console.log('[Socket.IO] Client connected:', socket.id);
+
+  socket.on('join_room', ({ roomId, userName, userId, avatar }) => {
     socket.join(roomId);
-    if (!roomChats[roomId]) roomChats[roomId] = [];
-    socket.to(roomId).emit('user_joined', { userName });
-    socket.emit('chat_history', roomChats[roomId]);
+    socket.data.roomId   = roomId;
+    socket.data.userName = userName;
+    socket.data.userId   = userId;
+
+    if (!roomChats[roomId])    roomChats[roomId] = {};
+    if (!roomPresence[roomId]) roomPresence[roomId] = {};
+
+    roomPresence[roomId][socket.id] = { userId, userName, avatar };
+
+    socket.to(roomId).emit('user_joined', { userName, userId, avatar });
+    socket.emit('chat_history', roomChats[roomId].msgs || []);
+    socket.emit('presence_update', Object.values(roomPresence[roomId]));
+    socket.to(roomId).emit('presence_update', Object.values(roomPresence[roomId]));
   });
 
   socket.on('send_message', ({ roomId, message, userName, avatar }) => {
     const msgObj = { message, userName, avatar, time: new Date().toISOString() };
-    if (!roomChats[roomId]) roomChats[roomId] = [];
-    roomChats[roomId].push(msgObj);
-    io.to(roomId).emit('receive_message', msgObj);
+    if (!roomChats[roomId]) roomChats[roomId] = {};
+    if (!roomChats[roomId].msgs) roomChats[roomId].msgs = [];
+    roomChats[roomId].msgs.push(msgObj);
+    if (roomChats[roomId].msgs.length > 200) roomChats[roomId].msgs.shift();
+    socket.to(roomId).emit('receive_message', msgObj); // socket.to = others only, sender adds optimistically
   });
 
   socket.on('task_update', ({ roomId, tasks }) => {
     socket.to(roomId).emit('tasks_updated', tasks);
+  });
+
+  // ── Code scratchpad ───────────────────────────────────────────────────────
+  socket.on('code_change', ({ roomId, content, lang }) => {
+    socket.to(roomId).emit('code_update', { content, lang });
+  });
+
+  // ── Notes sync ────────────────────────────────────────────────────────────
+  socket.on('notes_change', ({ roomId, notes }) => {
+    socket.to(roomId).emit('notes_update', { notes });
+  });
+
+  // ── Links sync ────────────────────────────────────────────────────────────
+  socket.on('links_change', ({ roomId, links }) => {
+    socket.to(roomId).emit('links_update', { links });
   });
 
   socket.on('dm_join', ({ userId }) => {
@@ -77,7 +112,14 @@ io.on('connection', (socket) => {
     } catch (err) { console.error('DM error:', err); }
   });
 
-  socket.on('disconnect', () => {});
+  socket.on('disconnect', () => {
+    const { roomId, userName, userId } = socket.data || {};
+    if (roomId && roomPresence[roomId]) {
+      delete roomPresence[roomId][socket.id];
+      io.to(roomId).emit('presence_update', Object.values(roomPresence[roomId]));
+      io.to(roomId).emit('user_left', { userName, userId });
+    }
+  });
 });
 
 const PORT = process.env.PORT || 5000;

@@ -7,7 +7,7 @@ const NotificationSchema = new mongoose.Schema({
   type:      { type: String, required: true },
   message:   { type: String, required: true },
   read:      { type: Boolean, default: false },
-  meta:      { projectId: String, projectTitle: String },
+  meta:      { projectId: String, projectTitle: String, roomId: String, roomTitle: String },
   createdAt: { type: Date, default: Date.now }
 });
 

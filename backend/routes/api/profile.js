@@ -20,6 +20,7 @@ router.get('/me', auth, async (req, res) => {
     if (!profile) {
       return res.status(400).json({ msg: 'There is no profile for this user' });
     }
+    console.log('[Profile /me] User:', req.user.id, 'Following:', profile.following?.length || 0, 'users');
     res.json(profile);
   } catch (err) {
     console.error(err.message);
@@ -114,6 +115,7 @@ router.get('/user/:user_id', async (req, res) => {
   try {
     const profile = await Profile.findOne({ user: req.params.user_id }).populate('user', ['name', 'avatar']);
     if (!profile) return res.status(400).json({ msg: 'Profile not found' });
+    console.log('[Profile] Loaded profile for user:', req.params.user_id, 'Followers:', profile.followers?.length || 0, 'Following:', profile.following?.length || 0);
     res.json(profile);
   } catch (err) {
     console.error(err.message);
@@ -321,6 +323,7 @@ router.put('/follow/:userId', auth, async (req, res) => {
   try {
     const targetUserId = req.params.userId;
     const myUserId     = req.user.id;
+    console.log('[Follow] User', myUserId, 'toggling follow for', targetUserId);
 
     if (targetUserId === myUserId)
       return res.status(400).json({ msg: "You can't follow yourself" });
@@ -334,15 +337,18 @@ router.put('/follow/:userId', auth, async (req, res) => {
     if (!targetProfile) return res.status(404).json({ msg: 'Profile not found' });
 
     const alreadyFollowing = myProfile.following.map(id => id.toString()).includes(targetUserId);
+    console.log('[Follow] Already following?', alreadyFollowing);
 
     if (alreadyFollowing) {
       // Unfollow
       myProfile.following     = myProfile.following.filter(id => id.toString() !== targetUserId);
       targetProfile.followers = targetProfile.followers.filter(id => id.toString() !== myUserId);
+      console.log('[Follow] Unfollowed. My following count:', myProfile.following.length);
     } else {
       // Follow
       myProfile.following.push(targetUserId);
       targetProfile.followers.push(myUserId);
+      console.log('[Follow] Followed. My following count:', myProfile.following.length);
 
       // Notify the target user via socket
       try {
@@ -355,12 +361,15 @@ router.put('/follow/:userId', auth, async (req, res) => {
       } catch (_) {}
     }
 
-    await myProfile.save();
-    await targetProfile.save();
+    const savedMyProfile = await myProfile.save();
+    const savedTargetProfile = await targetProfile.save();
+    console.log('[Follow] Saved to DB successfully');
+    console.log('[Follow] After save - My following:', savedMyProfile.following.map(id => id.toString()));
+    console.log('[Follow] After save - Target followers:', savedTargetProfile.followers.map(id => id.toString()));
 
     res.json({ following: !alreadyFollowing, followerCount: targetProfile.followers.length });
   } catch (err) {
-    console.error(err);
+    console.error('[Follow] Error:', err);
     res.status(500).send('Server error');
   }
 });

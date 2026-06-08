@@ -205,7 +205,9 @@ export default function MessagesPage() {
   useEffect(() => {
     if (!user) return;
     const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
-      transports: ['websocket']
+      transports: ['polling'],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
     });
     socketRef.current = socket;
     socket.emit('dm_join', { userId: user.id || user._id });

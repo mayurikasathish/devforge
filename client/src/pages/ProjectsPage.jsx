@@ -22,6 +22,7 @@ function userIdStr(id) {
 
 function ProjectCard({ project, onApply, onDelete, onEdit, onStatusUpdate, currentUserId }) {
   const hasApplied = project.applicants?.some(a => userIdStr(a) === currentUserId);
+  const isAccepted = project.members?.some(m => userIdStr(m) === currentUserId);
   const isOwner    = userIdStr(project.user) === currentUserId;
   const style      = STATUS_STYLES[project.status] || STATUS_STYLES.open;
 
@@ -90,6 +91,11 @@ function ProjectCard({ project, onApply, onDelete, onEdit, onStatusUpdate, curre
             <option value="in_progress">In Progress</option>
             <option value="completed">Completed</option>
           </select>
+        ) : isAccepted ? (
+          <span className="flex items-center gap-1.5 text-xs font-body text-purple-400 px-3 py-1.5 rounded-xl"
+            style={{ background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.3)' }}>
+            <CheckCircle2 size={12} /> Accepted
+          </span>
         ) : hasApplied ? (
           <span className="flex items-center gap-1.5 text-xs font-body text-green-400 px-3 py-1.5 rounded-xl"
             style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)' }}>
@@ -141,11 +147,10 @@ export default function ProjectsPage() {
     const project = applyModal.project;
     setApplyModal({ open: false, project: null });
     try {
-      await api.put(`/api/projects/apply/${project._id}`);
+      const res = await api.put(`/api/projects/apply/${project._id}`);
+      // Use the updated project from backend which has proper applicants array
       setProjects(prev => prev.map(p =>
-        p._id === project._id
-          ? { ...p, applicants: [...(p.applicants || []), currentUserId] }
-          : p
+        p._id === project._id ? res.data : p
       ));
       toast.success('Application sent! The project owner has been notified.', { duration: 4000 });
     } catch (err) {

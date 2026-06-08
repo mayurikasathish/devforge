@@ -6,7 +6,7 @@ const Notification = require('../../models/Notification');
 // GET /api/notifications — fetch my unread notifications
 router.get('/', auth, async (req, res) => {
   try {
-    const notifs = await Notification.find({ recipient: req.user.id })
+    const notifs = await Notification.find({ recipient: req.user.id, read: false })
       .sort({ createdAt: -1 })
       .limit(50)
       .lean();

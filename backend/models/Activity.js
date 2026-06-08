@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const ActivitySchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['project_posted', 'doubt_posted', 'project_applied'],
+    enum: ['project_posted', 'doubt_posted', 'project_applied', 'room_created', 'room_joined'],
     required: true
   },
   actor: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true },
@@ -16,6 +16,8 @@ const ActivitySchema = new mongoose.Schema({
     projectTitle: String,
     doubtId:      String,
     doubtTitle:   String,
+    roomId:       String,
+    roomTitle:    String,
   },
   createdAt: { type: Date, default: Date.now }
 });

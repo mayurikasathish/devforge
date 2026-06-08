@@ -1,23 +1,41 @@
 const mongoose = require('mongoose');
 
 const RoomSchema = new mongoose.Schema({
-  creator: { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true },
-  title: { type: String, required: true },
+  creator:     { type: mongoose.Schema.Types.ObjectId, ref: 'user', required: true },
+  title:       { type: String, required: true },
   description: { type: String },
-  goal: { type: String },
-  deadline: { type: Date },
-  techStack: [String],
-  members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'user' }],
+  goal:        { type: String },
+  deadline:    { type: Date },
+  techStack:   [String],
+  members:     [{ type: mongoose.Schema.Types.ObjectId, ref: 'user' }],
+  joinRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'user' }],
+
   tasks: [{
-    id: String,
-    title: String,
+    id:          String,
+    title:       String,
     description: String,
-    status: { type: String, enum: ['todo', 'in_progress', 'done'], default: 'todo' },
-    assignee: String,
-    createdAt: { type: Date, default: Date.now }
+    status:      { type: String, enum: ['todo', 'in_progress', 'done'], default: 'todo' },
+    assigneeId:  String,   // user._id string
+    assigneeName:String,
+    createdAt:   { type: Date, default: Date.now }
   }],
+
+  // Shared code scratchpad — persisted so rejoining members see latest state
+  codeContent:  { type: String, default: '// Start collaborating...\n' },
+  codeLang:     { type: String, default: 'javascript' },
+
+  // Pinned links + shared notes
+  pinnedLinks: [{
+    id:    String,
+    label: String,
+    url:   String,
+    addedBy: String,
+    addedAt: { type: Date, default: Date.now }
+  }],
+  notes: { type: String, default: '' },
+
   isActive: { type: Boolean, default: true },
-  date: { type: Date, default: Date.now }
+  date:     { type: Date, default: Date.now }
 });
 
 module.exports = mongoose.model('room', RoomSchema);

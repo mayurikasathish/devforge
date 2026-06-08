@@ -129,6 +129,9 @@ router.put('/apply/:id', auth, async (req, res) => {
       meta: act.meta, createdAt: act.createdAt
     });
 
+    // Populate and return the updated project so frontend has correct applicants
+    await project.populate('applicants', ['name', 'avatar']);
+    await project.populate('members', ['name', 'avatar']);
     res.json(project);
   } catch (err) {
     console.error(err.message);

@@ -107,22 +107,89 @@ export default function LiveFeed() {
   const [loading, setLoading]     = useState(true);
   const socketRef                 = useRef(null);
 
-  // Initial load
+  // Get current user ID from localStorage (set by AuthContext)
+  const getCurrentUserId = () => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        const parsed = JSON.parse(userData);
+        return (parsed.id || parsed._id)?.toString();
+      } catch {}
+    }
+    return null;
+  };
+
+  // Initial load — filter by following + doubt_posted from everyone
   useEffect(() => {
-    api.get('/api/activity')
-      .then(r => setItems(r.data))
-      .catch(() => {})
+    const myId = getCurrentUserId();
+    console.log('[LiveFeed] Loading filtered activity feed...');
+    api.get('/api/activity/filtered')
+      .then(r => {
+        console.log('[LiveFeed] Filtered feed loaded:', r.data.length, 'items');
+        // Backend already filters: project events from following only, doubts from everyone
+        setItems(r.data);
+      })
+      .catch((err) => {
+        console.error('[LiveFeed] Failed to load filtered feed:', err.response?.status, err.response?.data);
+      })
       .finally(() => setLoading(false));
   }, []);
 
-  // Live socket
+  // Live socket — fetch following list for client-side filtering
   useEffect(() => {
+    const myId = getCurrentUserId();
+    const followingIdsRef = { current: [] };
+
+    // Fetch who I follow (async, but store in ref so socket handler always has latest)
+    console.log('[LiveFeed] Fetching following list...');
+    api.get('/api/profile/me')
+      .then(r => {
+        followingIdsRef.current = (r.data.following || []).map(id => id.toString());
+        console.log('[LiveFeed] Following loaded:', followingIdsRef.current.length, 'users', followingIdsRef.current);
+      })
+      .catch((err) => {
+        console.error('[LiveFeed] Failed to load following:', err);
+      });
+
     const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
-      transports: ['websocket']
+      transports: ['polling'],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
     });
     socketRef.current = socket;
 
+    socket.on('connect', () => {
+      console.log('[LiveFeed] Socket connected:', socket.id);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('[LiveFeed] Socket connection error:', err.message);
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('[LiveFeed] Socket disconnected:', reason);
+    });
+
     socket.on('activity', (event) => {
+      const actorId = (event.actor?._id || event.actor)?.toString();
+      console.log('[LiveFeed] Socket event received:', event.type, 'from actor:', actorId, 'following:', followingIdsRef.current);
+
+      // Don't show own activities
+      if (myId && actorId === myId) {
+        console.log('[LiveFeed] Filtered out own activity');
+        return;
+      }
+
+      // For project events, only show from people I follow
+      if (event.type === 'project_posted' || event.type === 'project_applied') {
+        if (!followingIdsRef.current.includes(actorId)) {
+          console.log('[LiveFeed] Filtered out project event from non-followed user');
+          return;
+        }
+      }
+      // For doubt_posted, show from everyone (no filter)
+      console.log('[LiveFeed] Showing activity in feed');
+
       setItems(prev => [event, ...prev].slice(0, 30)); // cap at 30
       setNewIds(prev => new Set([...prev, event._id]));
       // Clear "new" highlight after 8s

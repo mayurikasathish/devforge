@@ -5,6 +5,7 @@ import { io } from 'socket.io-client';
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
+import ApplyModal from '../components/ui/ApplyModal';
 import toast from 'react-hot-toast';
 import {
   Star, Users, Layers, Zap, ArrowRight, TrendingUp, X, Clock,
@@ -52,6 +53,8 @@ const FEED_CONF = {
   project_posted:  { color: '#a855f7', emoji: '🚀', label: (a) => `${a.actor?.name} posted a project`, sub: a => a.meta?.projectTitle, link: '/projects' },
   doubt_posted:    { color: '#f472b6', emoji: '💬', label: (a) => `${a.actor?.name} posted a doubt`,   sub: a => a.meta?.doubtTitle,   link: '/doubts'   },
   project_applied: { color: '#34d399', emoji: '⚡',  label: (a) => `${a.actor?.name} applied to a project`, sub: a => a.meta?.projectTitle, link: '/projects' },
+  room_created:    { color: '#38bdf8', emoji: '🛠️', label: (a) => `${a.actor?.name} created a room`,   sub: a => a.meta?.roomTitle,    link: '/rooms'    },
+  room_joined:     { color: '#818cf8', emoji: '🚪', label: (a) => `${a.actor?.name} joined a room`,    sub: a => a.meta?.roomTitle,    link: '/rooms'    },
 };
 
 function FeedItem({ item, isNew }) {
@@ -188,13 +191,18 @@ function NotifBell({ notifs, onClear }) {
                 </div>
               ) : (
                 notifs.map((n, i) => (
-                  <button key={i} onClick={() => { if (n.projectId) navigate('/projects'); setOpen(false); }}
+                  <button key={i} onClick={() => {
+                      if (n.roomId) navigate('/rooms');
+                      else if (n.projectId) navigate('/projects');
+                      setOpen(false);
+                    }}
                     className="w-full flex items-start gap-3 px-4 py-3 hover:bg-white/5 transition-all text-left"
                     style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                     <span className="text-base flex-shrink-0 mt-0.5">
-                      {n.type === 'application_accepted' ? '🎉'
-                       : n.type === 'application_rejected' ? '😔'
+                      {n.type === 'application_accepted' || n.type === 'room_approved' ? '🎉'
+                       : n.type === 'application_rejected' || n.type === 'room_rejected' ? '😔'
                        : n.type === 'project_applied' ? '⚡'
+                       : n.type === 'room_join_request' ? '🚪'
                        : '🔔'}
                     </span>
                     <div className="flex-1 min-w-0">
@@ -225,7 +233,8 @@ export default function Dashboard() {
   const [feedLoading, setFeedLoading] = useState(true);
   const [newFeedIds, setNewFeedIds]   = useState(new Set());
   const [followingIds, setFollowingIds] = useState([]);
-  const [expandedApplicants, setExpandedApplicants] = useState({}); // projectId → bool
+  const [expandedApplicants, setExpandedApplicants] = useState({});
+  const [applyModal, setApplyModal] = useState({ open: false, project: null }); // projectId → bool
   const socketRef = useRef(null);
   const myIdRef   = useRef(null); // stable ref so socket closure always has current user id
 
@@ -236,7 +245,7 @@ export default function Dashboard() {
         const [profileRes, projectsRes, activityRes, followingRes] = await Promise.all([
           api.get('/api/profile/me').catch(() => ({ data: null })),
           api.get('/api/projects').catch(() => ({ data: [] })),
-          api.get('/api/activity').catch(() => ({ data: [] })),
+          api.get('/api/activity/filtered').catch(() => ({ data: [] })),
           api.get('/api/activity/following').catch(() => ({ data: [] })),
         ]);
         setProfile(profileRes.data);
@@ -257,17 +266,22 @@ export default function Dashboard() {
         // Persistent notifs (accept/reject) go into bell
         const persistentMapped = persistentNotifsRes.data.map(n => ({
           type: n.type, message: n.message,
-          projectId: n.meta?.projectId, createdAt: n.createdAt, _id: n._id
+          projectId: n.meta?.projectId, roomId: n.meta?.roomId,
+          createdAt: n.createdAt, _id: n._id
         }));
 
-        // Following activity — exclude self
+        // Following activity — exclude self, exclude anything before last clear
+        const clearedAt = localStorage.getItem('notifs_cleared_at');
         const followingActivity = followingRes.data
           .filter(a => a.actor?._id?.toString() !== myIdStr)
+          .filter(a => !clearedAt || new Date(a.createdAt) > new Date(clearedAt))
           .slice(0, 20)
           .map(a => ({
             type: a.type,
             message: a.type === 'project_posted' ? `${a.actor?.name} posted "${a.meta?.projectTitle}"`
                    : a.type === 'doubt_posted'    ? `${a.actor?.name} posted a doubt: "${a.meta?.doubtTitle}"`
+                   : a.type === 'room_created'    ? `${a.actor?.name} created a room: "${a.meta?.roomTitle}"`
+                   : a.type === 'room_joined'     ? `${a.actor?.name} joined "${a.meta?.roomTitle}"`
                    : `${a.actor?.name} applied to "${a.meta?.projectTitle}"`,
             projectId: a.meta?.projectId,
             doubtId: a.meta?.doubtId,
@@ -296,54 +310,78 @@ export default function Dashboard() {
   useEffect(() => {
     // Connect immediately (user may be null initially, that's fine)
     const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
-      transports: ['websocket']
+      transports: ['polling'],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
     });
     socketRef.current = socket;
 
-    // ── Live feed events (project posted, doubt posted, someone applied) ──
+    // ── Live feed + bell ─────────────────────────────────────────────────────
     socket.on('activity', (event) => {
       const evActorId = event.actor?._id?.toString() || event.actor?.toString();
-      // Don't show own actions in feed — use ref so closure always has latest user id
-      if (myIdRef.current && evActorId === myIdRef.current) return;
-      setFeedItems(prev => [event, ...prev].slice(0, 30));
-      setNewFeedIds(prev => new Set([...prev, event._id]));
-      setTimeout(() => setNewFeedIds(prev => { const n=new Set(prev); n.delete(event._id); return n; }), 8000);
 
-      // Only push to bell if actor is someone we follow AND not ourselves
-      const actorId = event.actor?._id?.toString() || event.actor?.toString();
+      // Always skip own actions entirely
+      if (myIdRef.current && evActorId === myIdRef.current) return;
+
+      // project_applied never goes in the feed — owner gets it via notification socket
+      if (event.type === 'project_applied') return;
+
       setFollowingIds(currentFollowing => {
-        if (actorId !== myIdRef.current && currentFollowing.includes(actorId)) {
+        const isFollowed = currentFollowing.includes(evActorId);
+
+        // ── Feed: only project_posted + doubt_posted from people I follow ──
+        if (isFollowed) {
+          setFeedItems(prev => [event, ...prev].slice(0, 30));
+          setNewFeedIds(prev => new Set([...prev, event._id]));
+          setTimeout(() => setNewFeedIds(prev => { const n = new Set(prev); n.delete(event._id); return n; }), 8000);
+
+          // ── Bell: same filter — only from people I follow ──
           const MSGS = {
-            project_posted:  (a) => `${a.actor?.name} posted a new project: "${a.meta?.projectTitle}"`,
-            doubt_posted:    (a) => `${a.actor?.name} posted a doubt: "${a.meta?.doubtTitle}"`,
-            project_applied: (a) => `${a.actor?.name} applied to "${a.meta?.projectTitle}"`,
+            project_posted: (a) => `${a.actor?.name} posted a new project: "${a.meta?.projectTitle}"`,
+            doubt_posted:   (a) => `${a.actor?.name} posted a doubt: "${a.meta?.doubtTitle}"`,
+            room_created:   (a) => `${a.actor?.name} created a room: "${a.meta?.roomTitle}"`,
+            room_joined:    (a) => `${a.actor?.name} joined "${a.meta?.roomTitle}"`,
           };
           const msgFn = MSGS[event.type];
           if (msgFn) {
             setNotifs(prev => [{ type: event.type, message: msgFn(event),
               projectId: event.meta?.projectId, doubtId: event.meta?.doubtId,
-              createdAt: new Date().toISOString(), _feedItem: true }, ...prev]);
+              createdAt: new Date().toISOString() }, ...prev]);
           }
         }
-        return currentFollowing; // no mutation, just reading
+
+        return currentFollowing;
       });
     });
 
-    // ── Direct notifications (apply accepted/rejected, owner gets apply alert) ──
+    // ── Direct notifications (projects + rooms) ─────────────────────────────
     socket.on('notification', (notif) => {
       setNotifs(prev => [notif, ...prev]);
-      toast(notif.message, {
-        icon: notif.type === 'application_accepted' ? '🎉'
-              : notif.type === 'application_rejected' ? '😔'
-              : '⚡',
-        duration: 5000,
-      });
+      const icon =
+        notif.type === 'application_accepted' ? '🎉'
+        : notif.type === 'application_rejected' ? '😔'
+        : notif.type === 'room_approved'   ? '🎉'
+        : notif.type === 'room_rejected'   ? '😔'
+        : '⚡';
+      toast(notif.message, { icon, duration: 5000 });
+      // Refresh my projects if someone applied
       if (notif.type === 'project_applied') {
         api.get('/api/projects').then(r => {
           const myId = user?.id || user?._id;
           setMyProjects(r.data.filter(p => (p.user?._id || p.user)?.toString() === myId?.toString()));
         }).catch(() => {});
       }
+    });
+
+    // ── Room join requests — someone wants to join my room ─────────────────
+    socket.on('room_join_request', ({ roomId, roomTitle, userId: requesterId }) => {
+      setNotifs(prev => [{
+        type: 'room_join_request',
+        message: `Someone requested to join your room "${roomTitle}"`,
+        roomId,
+        createdAt: new Date().toISOString(),
+      }, ...prev]);
+      toast(`Someone wants to join "${roomTitle}"`, { icon: '🚪', duration: 5000 });
     });
 
     return () => socket.disconnect();
@@ -375,13 +413,29 @@ export default function Dashboard() {
     value: (s.level || 3) * 20
   })) || [];
 
-  const handleApply = async (id) => {
+  // Opens confirmation modal — receives full project object
+  const handleApply = (proj) => {
+    setApplyModal({ open: true, project: proj });
+  };
+
+  const confirmApply = async () => {
+    const proj = applyModal.project;
+    setApplyModal({ open: false, project: null });
     try {
-      await api.put(`/api/projects/apply/${id}`);
-      setProjects(prev => prev.map(p => p._id === id
-        ? { ...p, applicants: [...(p.applicants||[]), { _id: user?.id }] } : p));
-      toast.success('Application sent!');
-    } catch { toast.error('Could not apply'); }
+      await api.put(`/api/projects/apply/${proj._id}`);
+      const myId = user?.id || user?._id;
+      setProjects(prev => prev.map(p =>
+        p._id === proj._id
+          ? { ...p, applicants: [...(p.applicants || []), { _id: myId }] }
+          : p
+      ));
+      toast.success('Application sent! The project owner has been notified.', { duration: 4000 });
+    } catch (err) {
+      const msg = err.response?.data?.msg;
+      if (msg === 'Already applied') toast.error('You already applied to this project');
+      else if (msg === 'You cannot apply to your own project') toast.error("That's your own project!");
+      else toast.error('Could not send application');
+    }
   };
 
   const sortedSuggested = [...suggested].sort((a, b) =>
@@ -397,6 +451,13 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 pt-28 pb-16">
+      {applyModal.open && (
+        <ApplyModal
+          project={applyModal.project}
+          onConfirm={confirmApply}
+          onCancel={() => setApplyModal({ open: false, project: null })}
+        />
+      )}
       {/* Header row with notif bell */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-10">
         <div>
@@ -407,6 +468,7 @@ export default function Dashboard() {
         </div>
         <NotifBell notifs={notifs} onClear={() => {
     setNotifs([]);
+    localStorage.setItem('notifs_cleared_at', new Date().toISOString());
     api.put('/api/notifications/read-all').catch(() => {});
   }} />
       </motion.div>
@@ -626,6 +688,7 @@ export default function Dashboard() {
                 {projects.map(proj => {
                   const myId = user?.id || user?._id;
                   const hasApplied = proj.applicants?.some(a => (a._id||a)?.toString() === myId?.toString());
+                  const isAccepted = proj.members?.some(m => (m._id||m)?.toString() === myId?.toString());
                   return (
                     <div key={proj._id} className="glass p-4 rounded-xl card-hover">
                       <div className="flex items-start justify-between gap-2">
@@ -645,13 +708,18 @@ export default function Dashboard() {
                         <span className="text-xs text-gray-600 font-mono flex items-center gap-1">
                           <Users size={10}/> {proj.applicants?.length||0} applicants
                         </span>
-                        {hasApplied ? (
+                        {isAccepted ? (
+                          <span className="flex items-center gap-1 text-xs text-purple-400 font-body px-3 py-1 rounded-xl"
+                            style={{ background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.3)' }}>
+                            <CheckCircle2 size={11}/> Accepted
+                          </span>
+                        ) : hasApplied ? (
                           <span className="flex items-center gap-1 text-xs text-green-400 font-body px-3 py-1 rounded-xl"
                             style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)' }}>
                             <CheckCircle2 size={11}/> Applied
                           </span>
                         ) : (
-                          <button onClick={() => handleApply(proj._id)}
+                          <button onClick={() => handleApply(proj)}
                             className="btn-primary text-xs py-1.5 px-4">Apply</button>
                         )}
                       </div>
