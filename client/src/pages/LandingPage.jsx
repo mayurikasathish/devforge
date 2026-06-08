@@ -4,7 +4,7 @@ import { Code2, Zap, Users, Shield, Star, ArrowRight, Github, Brain, MessageSqua
 
 const features = [
   { icon: Users, title: 'Project Matchmaking', desc: 'Find the perfect collaborators based on skills and availability. Get matched automatically.', color: '#a855f7' },
-  { icon: Brain, title: 'Skill Dashboard', desc: 'Visualize your growth with beautiful charts, star ratings, and weekly progress tracking.', color: '#f472b6' },
+  { icon: Brain, title: 'Skill Dashboard', desc: 'Visualize your growth with beautiful charts and star ratings.', color: '#f472b6' },
   { icon: Github, title: 'GitHub + LeetCode', desc: 'Showcase your repositories and coding stats beautifully on your developer profile.', color: '#2dd4bf' },
   { icon: MessageSquare, title: 'Anonymous Doubts', desc: 'Post questions anonymously tagged by topic. Get answers from the community.', color: '#f472b6' },
   { icon: Zap, title: 'Build Together Rooms', desc: 'Real-time rooms with chat, task boards, and collaborative project timelines.', color: '#a855f7' },

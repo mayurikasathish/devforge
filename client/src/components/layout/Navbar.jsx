@@ -39,7 +39,7 @@ export default function Navbar() {
   }, [location.pathname]);
 
   const handleLogout = () => { logout(); navigate('/'); };
-  const logoTo = isAuthenticated ? '/dashboard' : '/';
+  const logoTo = '/';
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 px-4 pt-4">
