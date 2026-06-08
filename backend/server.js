@@ -6,10 +6,19 @@ const connectDB  = require('./config/db');
 
 const app    = express();
 const server = http.createServer(app);
+
+// Allow multiple localhost ports for development
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+  process.env.CLIENT_URL
+].filter(Boolean);
+
 const io     = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
-    methods: ['GET', 'POST'],
+    origin: allowedOrigins,
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
   },
   transports: ['websocket', 'polling']
@@ -20,7 +29,18 @@ app.set('io', io);
 
 connectDB();
 
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
@@ -35,6 +55,7 @@ app.use('/api/github',   require('./routes/api/github'));
 app.use('/api/messages', require('./routes/api/messages'));
 app.use('/api/activity',       require('./routes/api/activity'));
 app.use('/api/notifications',   require('./routes/api/notifications'));
+app.use('/api/code',     require('./routes/api/code'));
 
 app.get('/', (req, res) => res.json({ message: '🚀 DevForge API Running' }));
 
@@ -50,13 +71,14 @@ io.on('connection', (socket) => {
     socket.data.userName = userName;
     socket.data.userId   = userId;
 
-    if (!roomChats[roomId])    roomChats[roomId] = {};
+    if (!roomChats[roomId])    roomChats[roomId] = { msgs: [] };
+    if (!roomChats[roomId].msgs) roomChats[roomId].msgs = [];
     if (!roomPresence[roomId]) roomPresence[roomId] = {};
 
     roomPresence[roomId][socket.id] = { userId, userName, avatar };
 
     socket.to(roomId).emit('user_joined', { userName, userId, avatar });
-    socket.emit('chat_history', roomChats[roomId].msgs || []);
+    socket.emit('chat_history', roomChats[roomId].msgs);
     socket.emit('presence_update', Object.values(roomPresence[roomId]));
     socket.to(roomId).emit('presence_update', Object.values(roomPresence[roomId]));
   });

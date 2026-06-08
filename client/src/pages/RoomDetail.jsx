@@ -12,42 +12,29 @@ import {
   ChevronDown, Users, Loader
 } from 'lucide-react';
 
-// ─── Piston API for code execution ───────────────────────────────────────────
-const PISTON_LANGS = {
-  javascript: { language: 'javascript', version: '18.15.0' },
-  typescript: { language: 'typescript', version: '5.0.3'   },
-  python:     { language: 'python',     version: '3.10.0'  },
-  java:       { language: 'java',       version: '15.0.2'  },
-  cpp:        { language: 'c++',        version: '10.2.0'  },
-  go:         { language: 'go',         version: '1.16.2'  },
-  rust:       { language: 'rust',       version: '1.50.0'  },
-  bash:       { language: 'bash',       version: '5.2.0'   },
-};
-
+// ─── Code execution ───────────────────────────────────────────────────────────
 async function runCode(lang, code) {
-  const cfg = PISTON_LANGS[lang];
-  if (!cfg) return { output: `Execution not supported for ${lang}`, error: true };
+  if (lang !== 'javascript') {
+    return { output: 'Only JavaScript is currently supported', error: true };
+  }
   try {
-    const res = await fetch('https://emkc.org/api/v2/piston/execute', {
+    const res = await fetch('/api/code/execute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        language: cfg.language,
-        version:  cfg.version,
-        files: [{ name: 'main', content: code }],
-        stdin: '',        // provide empty stdin so cin/input() don't hang
-        run_timeout: 5000 // 5s max
+        language: lang,
+        code: code,
+        stdin: ''
       })
     });
     if (!res.ok) return { output: `API error: ${res.status}`, error: true };
     const data = await res.json();
-    const run  = data.run || {};
-    // Piston returns stdout, stderr and combines into output
-    const stdout = run.stdout || '';
-    const stderr = run.stderr || '';
-    const out    = stdout + stderr;
-    const isErr  = run.code !== 0 || (!stdout && !!stderr);
-    return { output: out.trim() || '(no output)', error: isErr };
+
+    if (!data.success) {
+      return { output: data.error || 'Execution failed', error: true };
+    }
+
+    return { output: data.output || '(no output)', error: !!data.error };
   } catch (e) {
     return { output: 'Network error — could not reach execution API', error: true };
   }
@@ -61,7 +48,7 @@ function CodeEditor({ value, onChange, lang, onLangChange }) {
   const [output, setOutput]     = useState(null); // { output, error }
   const [showOutput, setShowOutput] = useState(false);
 
-  const LANGS = ['javascript','typescript','python','java','cpp','go','rust','html','css','sql','bash'];
+  const LANGS = ['javascript'];
 
   const syncScroll = () => {
     if (lineNumRef.current && textareaRef.current)
@@ -108,20 +95,21 @@ function CodeEditor({ value, onChange, lang, onLangChange }) {
             className="text-xs font-mono bg-transparent text-gray-400 border border-white/10 rounded px-2 py-0.5 outline-none cursor-pointer">
             {LANGS.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
+          <span className="text-[10px] font-mono text-gray-500 px-2 py-0.5 rounded-full bg-white/5">
+            Node.js runtime
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => { navigator.clipboard.writeText(value); toast.success('Copied!'); }}
             className="flex items-center gap-1.5 text-xs font-mono text-gray-500 hover:text-white transition-colors px-2 py-1 rounded hover:bg-white/5">
             <Copy size={11} /> Copy
           </button>
-          {PISTON_LANGS[lang] && (
-            <button onClick={handleRun} disabled={running || !value.trim()}
-              className="flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-lg transition-all disabled:opacity-40"
-              style={{ background: 'linear-gradient(135deg,#a855f7,#f472b6)', color: '#fff' }}>
-              {running ? <Loader size={11} className="animate-spin" /> : <Play size={11} />}
-              {running ? 'Running…' : 'Run'}
-            </button>
-          )}
+          <button onClick={handleRun} disabled={running || !value.trim()}
+            className="flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-lg transition-all disabled:opacity-40"
+            style={{ background: 'linear-gradient(135deg,#a855f7,#f472b6)', color: '#fff' }}>
+            {running ? <Loader size={11} className="animate-spin" /> : <Play size={11} />}
+            {running ? 'Running…' : 'Run'}
+          </button>
           {showOutput && (
             <button onClick={() => setShowOutput(!showOutput)}
               className="text-xs font-mono text-gray-500 hover:text-white transition-colors px-2 py-1 rounded hover:bg-white/5">
